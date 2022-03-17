@@ -8,13 +8,39 @@ using namespace std;
 #define GREEN   1
 #define BLUE    2
 
-typedef struct Btn
+class Btn
 {
+public:
+    Mat sourceImg;
     int color;
     Point site;
     Btn(){}
+    Btn(Mat inputImg) : sourceImg(inputImg) {
+
+    }
+    Btn(Mat inputImg, int btnColor) : sourceImg(inputImg), color(btnColor){
+
+    }
+    Btn(string filaName) {
+        sourceImg = imread(filaName);
+    }
     Btn(int color) : color(color){}
-}Btn;
+
+    bool isLigthed() {
+        vector<Mat> bgrImg(3);
+        split(sourceImg, bgrImg);
+        Mat testImg;
+        switch (this->color)
+        {
+            case RED: testImg = bgrImg[2] - bgrImg[0]; break;
+            case GREEN: testImg = bgrImg[1] - bgrImg[2];break;
+            case BLUE: ;break;
+        }
+        imshow("testImg", testImg);
+
+        return true;
+    }
+};
 
 bool btnIsLighted(Mat btnImg, Btn btn);
 
@@ -26,7 +52,7 @@ bool btnIsLighted(Mat btnImg, Btn btn)
     switch (btn.color)
     {
         case RED: testImg = bgrImg[2] - bgrImg[0]; break;
-        case GREEN: testImg = bgrImg[1] - bgrImg[2];break;
+        case GREEN: testImg = bgrImg[1] - bgrImg[0];break;
         case BLUE: ;break;
     }
     imshow("testImg", testImg);
@@ -46,15 +72,15 @@ int main()
 //    inRange(sourceHSVImg, hsvDataLower, hsvDataUp, hsvImg);
 //    imshow("hsvImg", hsvImg);
 
-//    Btn greenBtn(GREEN);
-//    btnIsLighted(sourceImg, greenBtn);
+    Btn greenBtn(sourceImg, RED);
+    cout << greenBtn.isLigthed() << endl;
 
-    vector<Mat> bgrImg(3);
-    split(sourceImg, bgrImg);
-    imshow("r", bgrImg[2]);
-    imshow("g", bgrImg[1]);
-    imshow("b", bgrImg[0]);
-    imshow("testImg", bgrImg[1] - bgrImg[2]);
+//    vector<Mat> bgrImg(3);
+//    split(sourceImg, bgrImg);
+//    imshow("r", bgrImg[2]);
+//    imshow("g", bgrImg[1]);
+//    imshow("b", bgrImg[0]);
+//    imshow("testImg", bgrImg[1] - bgrImg[2]);
 
 
     waitKey(0);
