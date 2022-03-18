@@ -37,6 +37,70 @@
      using namespace Eigen;
      using Eigen::MatrixXd;
 
+float getPointDepth(Point point) {
+    //相机设置
+    rs2::colorizer color_map;
+    rs2::align align_to(RS2_STREAM_COLOR);
+    //rs2::pipeline pipe1;
+    //pipe1.start();
+    rs2::spatial_filter spat_filter;
+    rs2::threshold_filter thr_filter;
+    rs2::temporal_filter tem_filter;
+    rs2::hole_filling_filter hole_filter;
+    rs2::disparity_transform depth_to_disparity(true);
+    rs2::disparity_transform disparity_to_depth(false);
+    thr_filter.set_option(RS2_OPTION_MIN_DISTANCE, 0.0f);
+    thr_filter.set_option(RS2_OPTION_MAX_DISTANCE, 4.f);
+    spat_filter.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, 0.55f);
+    spat_filter.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, 20);
+    spat_filter.set_option(RS2_OPTION_FILTER_MAGNITUDE, 2);
+    spat_filter.set_option(RS2_OPTION_HOLES_FILL, 4);
+    tem_filter.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, 4);
+    tem_filter.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, 0.4f);
+    tem_filter.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, 20);
+    //信息配置
+    rs2::frameset data= pipe1.wait_for_frames();
+    rs2::frameset aligned_set = align_to.process(data);
+    rs2::depth_frame depth_frame = aligned_set.get_depth_frame();
+    rs2::depth_frame filtered = depth_frame;
+    filtered = thr_filter.process(filtered);
+    filtered = depth_to_disparity.process(filtered);
+    filtered = hole_filter.process(filtered);
+    filtered = disparity_to_depth.process(filtered);
+    filtered = spat_filter.process(filtered);
+    filtered = tem_filter.process(filtered);
+    //提取深度信息
+    vector<float> distacnceVector(5);
+    distacnceVector[0] = filtered.get_distance(cvRound(point.x), cvRound(point.y));
+    distacnceVector[1] = filtered.get_distance(cvRound(point.x)-1, cvRound(point.y)-1);
+    distacnceVector[2] = filtered.get_distance(cvRound(point.x)-1, cvRound(point.y)+1);
+    distacnceVector[3] = filtered.get_distance(cvRound(point.x)+1, cvRound(point.y)-1);
+    distacnceVector[4] = filtered.get_distance(cvRound(point.x)+1, cvRound(point.y)+1);
+
+    float pointDistance = 0;
+    for (auto i : distacnceVector)
+        pointDistance += i;
+
+    return pointDistance/5;
+}
+
+class DetectCircle {
+public:
+    Mat sourceImg;
+    vector<Vec3f> circleInfo;
+    DetectCircle(Mat inputImg) : sourceImg(inputImg) {
+
+    }
+    void getCircles(double dp = 1, double minDist = 10) {
+        HoughCircles(sourceImg, circleInfo, HOUGH_GRADIENT, dp, minDist, 80, 40, 0, 0);
+        cout << (circleInfo.size() >= 1 ? "find circles" : "not find circles");
+    }
+    void printCircleInfo() {
+        for (auto i : circleInfo)
+            cout << i << endl;
+    }
+};
+
 class DetectRect {
 public:
     Mat sourceImg;
@@ -46,54 +110,73 @@ public:
     DetectRect(Mat inputImg) : sourceImg(inputImg) {
 
     }
-    float getPointDepth(Point point) {
-        //相机设置
-        rs2::colorizer color_map;
-        rs2::align align_to(RS2_STREAM_COLOR);
-        //rs2::pipeline pipe1;
-        //pipe1.start();
-        rs2::spatial_filter spat_filter;
-        rs2::threshold_filter thr_filter;
-        rs2::temporal_filter tem_filter;
-        rs2::hole_filling_filter hole_filter;
-        rs2::disparity_transform depth_to_disparity(true);
-        rs2::disparity_transform disparity_to_depth(false);
-        thr_filter.set_option(RS2_OPTION_MIN_DISTANCE, 0.0f);
-        thr_filter.set_option(RS2_OPTION_MAX_DISTANCE, 4.f);
-        spat_filter.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, 0.55f);
-        spat_filter.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, 20);
-        spat_filter.set_option(RS2_OPTION_FILTER_MAGNITUDE, 2);
-        spat_filter.set_option(RS2_OPTION_HOLES_FILL, 4);
-        tem_filter.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, 4);
-        tem_filter.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, 0.4f);
-        tem_filter.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, 20);
-        //信息配置
-        rs2::frameset data= pipe1.wait_for_frames();
-        rs2::frameset aligned_set = align_to.process(data);
-        rs2::depth_frame depth_frame = aligned_set.get_depth_frame();
-        rs2::depth_frame filtered = depth_frame;
-        filtered = thr_filter.process(filtered);
-        filtered = depth_to_disparity.process(filtered);
-        filtered = hole_filter.process(filtered);
-        filtered = disparity_to_depth.process(filtered);
-        filtered = spat_filter.process(filtered);
-        filtered = tem_filter.process(filtered);
-        //提取深度信息
-        vector<float> distacnceVector(5);
-        distacnceVector[0] = filtered.get_distance(cvRound(point.x), cvRound(point.y));
-        distacnceVector[1] = filtered.get_distance(cvRound(point.x)-1, cvRound(point.x)-1);
-        distacnceVector[2] = filtered.get_distance(cvRound(point.x)-1, cvRound(point.x)+1);
-        distacnceVector[3] = filtered.get_distance(cvRound(point.x)+1, cvRound(point.x)-1);
-        distacnceVector[4] = filtered.get_distance(cvRound(point.x)+1, cvRound(point.x)+1);
 
-        float pointDistance = 0;
-        for (auto i : distacnceVector)
-            pointDistance += i;
-
-        return pointDistance;
+    void sortConrersUseCircle() {
+        vector<Point> sortedCorner(3, Point(0, 0)); //maxDistance:0
+        DetectCircle detectCircle(sourceImg);
+        detectCircle.getCircles();
+        //core
+        Vec3f circlePoint;
+        //if we have many circle, we get average
+        for (auto circle : detectCircle.circleInfo) {
+            circlePoint += circle;
+        }
+        circlePoint[0] /= detectCircle.circleInfo.size();
+        circlePoint[1] /= detectCircle.circleInfo.size();
+        circlePoint[2] /= detectCircle.circleInfo.size();
+        //get max distance of corner to circle center
+        float maxDistance = 0;
+        int maxNo = 0;
+        for (int i = 0; i < 3; i++) {
+            double distance = pow(corners[i].x - circlePoint[0], 2) + pow(corners[i].y - circlePoint[1], 2);
+            if (distance > maxDistance) {
+                maxDistance = distance;
+                maxNo = i;
+            }
+        }
+        cout << "maxDistance: " << maxDistance << ". maxNo: " << maxNo << endl;
+        sortedCorner[0] = corners[maxNo];   //maxDistance
+        switch (maxNo) {
+            case 0 : {
+                if (corners[1].x > corners[2].x) {
+                    sortedCorner[1] = corners[1];
+                    sortedCorner[2] = corners[2];
+                }
+                else {
+                    sortedCorner[1] = corners[2];
+                    sortedCorner[2] = corners[1];
+                }
+                break;
+            }
+            case 1 : {
+                if (corners[0].x > corners[2].x) {
+                    sortedCorner[1] = corners[0];
+                    sortedCorner[2] = corners[2];
+                }
+                else {
+                    sortedCorner[1] = corners[2];
+                    sortedCorner[2] = corners[0];
+                }
+                break;
+            }
+            case 2 : {
+                if (corners[0].x > corners[1].x) {
+                    sortedCorner[1] = corners[0];
+                    sortedCorner[2] = corners[1];
+                }
+                else {
+                    sortedCorner[1] = corners[1];
+                    sortedCorner[2] = corners[0];
+                }
+                break;
+            }
+        }
+        corners = sortedCorner; //sorted corners
     }
-    void getCorners() {
+    void getCornersWitdhDepth() {
         goodFeaturesToTrack(sourceImg, corners, 3, 0.1, 10);
+        //sort
+        sortConrersUseCircle();
         for (auto point : corners) { //add corners' depth info
             cornersWithDepth.push_back( Vec3f(point.x, point.y, getPointDepth(point)) );
         }
@@ -299,7 +382,7 @@ public:
          //if(i==0)
          //{
          //Delay_MSec(2000);
-         i=JKrobot.disable_robot();                     //机器人下使能
+         i=JKrobot.disable_robot();                     //机器人下使能t
          std::cout<<i<<std::endl;
          if(i!=0)
          {
@@ -417,8 +500,7 @@ public:
             float differ_z1 , differ_z2 , differ_z3 ;
 
             //设置相关参数
-            float sz[3][4];
-            double sum1=0,sum2=0,sum3=0,sum4=0,sum5=0,sum6=0,sum7=0,sum8=0,sum9=0,sum10=0,sum11=0,sum12=0;
+            double sum1=0,sum2=0,sum4=0,sum5=0,sum6=0,sum8=0,sum9=0,sum10=0,sum12=0;
 
                         int j;
                         for (j = 1; j < 11 && differ_flag; j++)
@@ -447,106 +529,28 @@ public:
                              return -1;
                             }
 
-                            DetectRect detectRect(src);
-                            detectRect.printCornersWithDistance();
+                            DetectCircle detectCircle(src);
+                            detectCircle.getCircles();
 
 
-
-
-
-
-
-                            //灰度化
-                            cvtColor(src, hsv, COLOR_BGR2GRAY);
-                            GaussianBlur(hsv, hsv, Size(9, 9), 2, 2);
-
-
-                            vector<Vec3f> circles;
-                            //进行霍夫圆变换
-                            HoughCircles(hsv, circles, CV_HOUGH_GRADIENT, 1, 10, 80, 40, 0, 0);
-
-                            size_t i = 0;
-                            float dist_to_center;
-                            float dist_to_center1;
-                            float dist_to_center2;
-                            float dist_to_center3;
-                            float dist_to_center4;
-                            float dist_to_center5;
-
-                            float dist_to_center11;
-                            float dist_to_center12;
-                            float dist_to_center13;
-                            float dist_to_center14;
-                            float dist_to_center15;
-
-                            float dist_to_center21;
-                            float dist_to_center22;
-                            float dist_to_center23;
-                            float dist_to_center24;
-                            float dist_to_center25;
-                            for ( i = 0; i < circles.size(); i++)
-                            {
-                                //参数定义
-                                Point center(cvRound(circles[i][0]), cvRound(circles[i][1]));
-                                int radius_r = cvRound(circles[i][2]);
-                                circle(hsv, center, 1, Scalar(255, 0, 0), -1, 8, 0);    //圆心
-
-                                //绘制圆轮廓
-                                circle(hsv, center, radius_r, Scalar(255, 0, 0), 2, 8, 0);
-
-                                qDebug("x = %d,y = %d，r = %d, i=%d", cvRound(circles[i][0]), cvRound(circles[i][1]),radius_r,i);
-
-                                //测距算出实际直径进行3圆定位
-
-
-                                    rs2::frameset data= pipe1.wait_for_frames();
-                                    rs2::frameset aligned_set = align_to.process(data);
-                                    rs2::depth_frame depth_frame = aligned_set.get_depth_frame();
-                                    rs2::depth_frame filtered = depth_frame;
-                                    filtered = thr_filter.process(filtered);
-                                    filtered = depth_to_disparity.process(filtered);
-                                    filtered = hole_filter.process(filtered);
-                                    filtered = disparity_to_depth.process(filtered);
-                                    filtered = spat_filter.process(filtered);
-                                    filtered = tem_filter.process(filtered);
-
-                                    dist_to_center = filtered.get_distance(cvRound(circles[i][0]), cvRound(circles[i][1]));
-                                    dist_to_center1 = filtered.get_distance(cvRound(circles[i][0])-1, cvRound(circles[i][1])-1);
-                                    dist_to_center2 = filtered.get_distance(cvRound(circles[i][0])-1, cvRound(circles[i][1])+1);
-                                    dist_to_center3 = filtered.get_distance(cvRound(circles[i][0])+1, cvRound(circles[i][1])-1);
-                                    dist_to_center4 = filtered.get_distance(cvRound(circles[i][0])+1, cvRound(circles[i][1])+1);
-
-                                dist_to_center = (dist_to_center+dist_to_center1+dist_to_center2+dist_to_center3+dist_to_center4)/5;
-                                std::cout << "The camera i1s facing an object " << dist_to_center << " meters away \r"<<std::endl;
-
-                                double rd = dist_to_center*1000 * ( 2 * radius_r ) / 920.81640625;
-
-                                qDebug("rd=%f",rd);
-
-                                if( rd>=13.5&&rd<=16.5)
-
+                            Vec3f goodCircle;
+                            float goodCircleOfDepth;
+                            for (auto circle : detectCircle.circleInfo) {
+                                float depthOfPoint = getPointDepth(Point(circle[0], circle[1]));
+                                float distance = depthOfPoint*1000 * ( 2 * circle[2] ) / 920.81640625;
+                                if (distance>=13.5 && distance<=16.5) {
+                                    goodCircle = circle;
+                                    goodCircleOfDepth = depthOfPoint;
                                     break;
-
+                                }
+                                cout << circle << endl;
                             }
 
-                            qDebug("x = %d,y = %d, i=%d", cvRound(circles[i][0]), cvRound(circles[i][1]),i);
 
-                                  //imshow("0",hsv);
-
-                            //int x1 = cvRound(circles[i][0]);
-                            //int y1 = cvRound(circles[i][1]);
-
-                            int x1 = 640;
-                            int y1 = 360;
-
-
-                            n(0, 0) = cvRound(circles[i][0]);
-                            n(1, 0) = cvRound(circles[i][1]);
+                            n(0, 0) = cvRound(goodCircle[0]);
+                            n(1, 0) = cvRound(goodCircle[1]);
                             n(2, 0) = 1.0;
-
-
-                            k = m * (dist_to_center*1000 * n);
-
+                            k = m * (goodCircleOfDepth*1000 * n);
 
                             double k1, k2, k3;
                             k1 = k(0, 0);
@@ -554,46 +558,15 @@ public:
                             k3 = k(2, 0);
 
 
-
-
                             GetRobotPosition(&tcp_pos.tran.x, &tcp_pos.tran.y, &tcp_pos.tran.z, &tcp_pos.rpy.rx, &tcp_pos.rpy.ry, &tcp_pos.rpy.rz);
 
 
 
-                            cart.tran.x = tcp_pos.tran.x + 480 - dist_to_center*1000;; cart.tran.y = tcp_pos.tran.y + k1; cart.tran.z = tcp_pos.tran.z - k2;
+                            cart.tran.x = tcp_pos.tran.x + 480 - goodCircleOfDepth*1000;; cart.tran.y = tcp_pos.tran.y + k1; cart.tran.z = tcp_pos.tran.z - k2;
                             cart.rpy.rx = tcp_pos.rpy.rx; cart.rpy.ry = tcp_pos.rpy.ry; cart.rpy.rz = tcp_pos.rpy.rz;
                             JKrobot.linear_move(&cart, MoveMode::ABS, TRUE, sysparaset.linearspeed);
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                            //调整结束拍照看误差是否达到可跳出
-                            float sz1[3][4];
-                            double sum13=0,sum23=0,sum33=0,sum43=0,sum53=0,sum63=0,sum73=0,sum83=0,sum93=0,sum103=0,sum113=0,sum123=0;
-
-                            rs2::frameset data= pipe1.wait_for_frames();
-                            rs2::depth_frame depth_frame = data.get_depth_frame();
-                            rs2::depth_frame filtered = depth_frame;
-                            filtered = thr_filter.process(filtered);
-                            filtered = depth_to_disparity.process(filtered);
-                            filtered = hole_filter.process(filtered);
-                            filtered = disparity_to_depth.process(filtered);
-                            filtered = spat_filter.process(filtered);
-                            filtered = tem_filter.process(filtered);
                             for (auto i = 0; i < 30; ++i) pipe1.wait_for_frames();
                             for (auto&& frame : pipe1.wait_for_frames())
                             {
@@ -609,351 +582,108 @@ public:
                                 }
                             }
 
-                            //opencv
-                           src1 = imread("/dev/shm/rs-save-to-disk-output-Color.png");
-
-                            if (!src1.data)
+                            //读取src
+                            src = imread("/dev/shm/rs-save-to-disk-output-Color.png");
+                            if (!src.data)
                             {
                              qDebug("could not load image...\n");
                              return -1;
                             }
 
-                            Rect rect1(x1-100, y1-100, 300, 300);
 
+                            int x1 = 640;
+                            int y1 = 360;
+
+                            Rect rect1(x1-300, y1-300, 400, 400);
                             Mat img1 = src1(rect1);
 
-                                cvtColor(img1, hsv2, COLOR_BGR2GRAY);
-
-                                GaussianBlur(hsv2, hsv2, Size(9, 9), 2, 2);
-
-
-                                vector<Vec3f> circles2;//进行霍夫圆变换
-                                HoughCircles(hsv2, circles2, CV_HOUGH_GRADIENT, 1, 10, 80, 40, 0, 0);
-                                int radius3 = cvRound(circles2[0][2]);
-                                int radius4 = cvRound(circles2[1][2]);
-                                int radius5 = cvRound(circles2[2][2]);
-
-                                for (size_t i = 0; i < circles2.size(); i++)
-                                {
-                                    //参数定义
-                                    Point center(cvRound(circles2[i][0]), cvRound(circles2[i][1]));
-                                    int radius = cvRound(circles2[i][2]);
-                                    //sz.push_back(radius);
-                                    circle(hsv2, center, 1, Scalar(255, 0, 0), -1, 8, 0);
-
-                                    //绘制圆轮廓
-                                    circle(hsv2, center, radius, Scalar(255, 0, 0), 2, 8, 0);
-                                }
-
-                                //imshow("2",hsv2);
-                                Delay_MSec(1000);
-
-                                filtered = thr_filter.process(filtered);
-                                filtered = depth_to_disparity.process(filtered);
-                                filtered = hole_filter.process(filtered);
-                                filtered = disparity_to_depth.process(filtered);
-                                filtered = spat_filter.process(filtered);
-                                filtered = tem_filter.process(filtered);
-
-                                dist_to_center = filtered.get_distance(cvRound(circles2[0][0]) + x1-100, cvRound(circles2[0][1]) + y1-100);
-                                dist_to_center1 = filtered.get_distance(cvRound(circles2[0][0]) + x1-100-1, cvRound(circles2[0][1]) + y1-100-1);
-                                dist_to_center2 = filtered.get_distance(cvRound(circles2[0][0]) + x1-100-1, cvRound(circles2[0][1]) + y1-100+1);
-                                dist_to_center3 = filtered.get_distance(cvRound(circles2[0][0]) + x1-100+1, cvRound(circles2[0][1]) + y1-100-1);
-                                dist_to_center4 = filtered.get_distance(cvRound(circles2[0][0]) + x1-100+1, cvRound(circles2[0][1]) + y1-100+1);
-                                dist_to_center3 = (dist_to_center+dist_to_center1+dist_to_center2+dist_to_center3+dist_to_center4)/5;
 
 
 
-                                dist_to_center11 = filtered.get_distance(cvRound(circles2[1][0]) + x1-100, cvRound(circles2[1][1]) + y1-100);
-                                dist_to_center12 = filtered.get_distance(cvRound(circles2[1][0]) + x1-100-1, cvRound(circles2[1][1]) + y1-100-1);
-                                dist_to_center13 = filtered.get_distance(cvRound(circles2[1][0]) + x1-100-1, cvRound(circles2[1][1]) + y1-100+1);
-                                dist_to_center14 = filtered.get_distance(cvRound(circles2[1][0]) + x1-100+1, cvRound(circles2[1][1]) + y1-100-1);
-                                dist_to_center15 = filtered.get_distance(cvRound(circles2[1][0]) + x1-100+1, cvRound(circles2[1][1]) + y1-100+1);
-                                dist_to_center4 = (dist_to_center11+dist_to_center12+dist_to_center13+dist_to_center14+dist_to_center15)/5;
-
-                                dist_to_center21 = filtered.get_distance(cvRound(circles2[2][0]) + x1-100, cvRound(circles2[2][1]) + y1-100);
-                                dist_to_center22 = filtered.get_distance(cvRound(circles2[2][0]) + x1-100-1, cvRound(circles2[2][1]) + y1-100-1);
-                                dist_to_center23 = filtered.get_distance(cvRound(circles2[2][0]) + x1-100-1, cvRound(circles2[2][1]) + y1-100+1);
-                                dist_to_center24 = filtered.get_distance(cvRound(circles2[2][0]) + x1-100+1, cvRound(circles2[2][1]) + y1-100-1);
-                                dist_to_center25 = filtered.get_distance(cvRound(circles2[2][0]) + x1-100+1, cvRound(circles2[2][1]) + y1-100+1);
-                                dist_to_center5 = (dist_to_center21+dist_to_center22+dist_to_center23+dist_to_center24+dist_to_center25)/5;
+                            DetectRect detectRect(img1);
+                            detectRect.getCornersWitdhDepth();
+                            detectRect.printCornersWithDistance();
 
 
 
 
-                                           vector<int>sy1;
-                                           sy1.push_back(radius3);
-                                           sy1.push_back(radius4);
-                                           sy1.push_back(radius5);
-                                           sort(sy1.begin(),sy1.end());
-                                           if(sy1[0]==radius3)
-                                           {
-                                               sz1[0][0]=cvRound(circles2[0][0]);sz1[0][1]=cvRound(circles2[0][1]);sz1[0][2]=radius3;sz1[0][3]=dist_to_center3 * 1000;
-                                           }
-                                           else if(sy1[0]==radius4)
-                                           {
-                                               sz1[0][0]=cvRound(circles2[1][0]);sz1[0][1]=cvRound(circles2[1][1]);sz1[0][2]=radius4;sz1[0][3]=dist_to_center4 * 1000;
-                                           }
-                                           else
-                                           {
-                                               sz1[0][0]=cvRound(circles2[2][0]);sz1[0][1]=cvRound(circles2[2][1]);sz1[0][2]=radius5;sz1[0][3]=dist_to_center5 * 1000;
-                                           }
-                                           if(sy1[1]==radius3)
-                                           {
-                                               sz1[1][0]=cvRound(circles2[0][0]);sz1[1][1]=cvRound(circles2[0][1]);sz1[1][2]=radius3;sz1[1][3]=dist_to_center3 * 1000;
-                                           }
-                                           else if(sy1[1]==radius4)
-                                           {
-                                               sz1[1][0]=cvRound(circles2[1][0]);sz1[1][1]=cvRound(circles2[1][1]);sz1[1][2]=radius4;sz1[1][3]=dist_to_center4 * 1000;
-                                           }
-                                           else
-                                           {
-                                               sz1[1][0]=cvRound(circles2[2][0]);sz1[1][1]=cvRound(circles2[2][1]);sz1[1][2]=radius5;sz1[1][3]=dist_to_center5 * 1000;
-                                           }
-                                           if(sy1[2]==radius3)
-                                           {
-                                               sz1[2][0]=cvRound(circles2[0][0]);sz1[2][1]=cvRound(circles2[0][1]);sz1[2][2]=radius3;sz1[2][3]=dist_to_center3 * 1000;
-                                           }
-                                           else if(sy1[2]==radius4)
-                                           {
-                                               sz1[2][0]=cvRound(circles2[1][0]);sz1[2][1]=cvRound(circles2[1][1]);sz1[2][2]=radius4;sz1[2][3]=dist_to_center4 * 1000;
-                                           }
-                                           else
-                                           {
-                                               sz1[2][0]=cvRound(circles2[2][0]);sz1[2][1]=cvRound(circles2[2][1]);sz1[2][2]=radius5;sz1[2][3]=dist_to_center5 * 1000;
-                                           }
+                            qDebug("x = %f,y = %f, d = %f\n", detectRect.cornersWithDepth[0][0],detectRect.cornersWithDepth[0][1], detectRect.cornersWithDepth[0][2]);
+                            qDebug("x = %f,y = %f, d = %f\n", detectRect.cornersWithDepth[1][0],detectRect.cornersWithDepth[1][1], detectRect.cornersWithDepth[1][2]);
+                            qDebug("x = %f,y = %f, d = %f\n", detectRect.cornersWithDepth[2][0],detectRect.cornersWithDepth[2][1], detectRect.cornersWithDepth[2][2]);
+                            differ_x = fabs (detectRect.cornersWithDepth[0][0]-detectRect.cornersWithDepth[2][0]);
+                            differ_y = fabs (detectRect.cornersWithDepth[0][1]-detectRect.cornersWithDepth[1][1]);
+                            differ_z1 = fabs (detectRect.cornersWithDepth[0][2]-detectRect.cornersWithDepth[1][2]);
+                            differ_z2 = fabs (detectRect.cornersWithDepth[0][2]-detectRect.cornersWithDepth[2][2]);
+                            differ_z3 = fabs (detectRect.cornersWithDepth[1][2]-detectRect.cornersWithDepth[2][2]);
+
+                            differ_flag = (differ_x>2)||(differ_y>2)||(differ_z1>sysparaset.errthreshold)||(differ_z2>sysparaset.errthreshold)||(differ_z3>sysparaset.errthreshold);
+                            qDebug("x=%d,y=%d,z1=%f,z2=%f,z3=%f",differ_x,differ_y,differ_z1,differ_z2,differ_z3);
+                            qDebug("d=%d",differ_flag) ;
+                            qDebug("j=%d",j);
 
 
-                                           sum13=sz1[0][0],sum23=sz1[0][1],sum33=sz1[0][2],sum43=sz1[0][3],
-                                           sum53=sz1[1][0],sum63=sz1[1][1],sum73=sz1[1][2],sum83=sz1[1][3],
-                                           sum93=sz1[2][0],sum103=sz1[2][1],sum113=sz1[2][2],sum123=sz1[2][3];
-
-                                          qDebug("x = %f,y = %f，r = %f,d = %f\n", sum13, sum23,sum33,sum43);
-                                          qDebug("x = %f,y = %f，r = %f,d = %f\n", sum53, sum63,sum73,sum83);
-                                          qDebug("x = %f,y = %f，r = %f,d = %f\n", sum93, sum103,sum113,sum123);
-                                          differ_x = fabs (sum13-sum93);
-                                          differ_y = fabs (sum23-sum63);
-                                          differ_z1 = fabs (sum43 - sum83);
-                                          differ_z2 = fabs (sum43-sum123);
-                                          differ_z3 = fabs (sum83-sum123);
-                                          differ_flag = (differ_x>2)||(differ_y>2)||(differ_z1>sysparaset.errthreshold)||(differ_z2>sysparaset.errthreshold)||(differ_z3>sysparaset.errthreshold);
-                                          qDebug("x=%d,y=%d,z1=%f,z2=%f,z3=%f",differ_x,differ_y,differ_z1,differ_z2,differ_z3);
-                                          qDebug("d=%d",differ_flag) ;
-                                          qDebug("j=%d",j);
+                            if(j==11||differ_flag==0)
+                                break;
 
 
-                                          if(j==11||differ_flag==0)
-                                              break;
+
+                        sum1 = detectRect.cornersWithDepth[0][0];
+                        sum2 = detectRect.cornersWithDepth[0][1];
+                        sum4 = detectRect.cornersWithDepth[0][2];
+
+                        sum5 = detectRect.cornersWithDepth[1][0];
+                        sum6 = detectRect.cornersWithDepth[1][1];
+                        sum8 = detectRect.cornersWithDepth[1][2];
+
+                        sum9 = detectRect.cornersWithDepth[2][0];
+                        sum10 = detectRect.cornersWithDepth[2][1];
+                        sum12 = detectRect.cornersWithDepth[2][2];
+
+
+
+                        //旋转角度计算与机械臂执行
+                        double  u1=sum1 + x1-300, v1=sum2 + y1-300,
+                                u2=sum5 + x1-300, v2=sum6 + y1-300,
+                                u3=sum9 + x1-300, v3=sum10 + y1-300;
+
+                        double X1, Y1, X2, Y2, X3, Y3;
+
+                        X1 = sum4 * (u1 - 630.4161376953125) / 920.81640625; Y1 = sum4 * (v1 - 373.34466552734375) / 919.99462890625;
+                        X2 = sum8 * (u2 - 630.4161376953125) / 920.81640625; Y2 = sum8 * (v2 - 373.34466552734375) / 919.99462890625;
+                        X3 = sum12 * (u3 - 630.4161376953125) / 920.81640625; Y3 = sum12 * (v3 - 373.34466552734375) / 919.99462890625;
+
+
+                        double d12 = sum4 - sum8;   //1-2
+                        double d13 = sum4 - sum12;   //1-3
+                        double x12 = X1 - X2;               //1-2
+                        double y12 = Y1 - Y2;               //1-2
+                        double y13 = Y1 - Y3;               //1-3
+
+                        double v12=v1-v2,u12=u1-u2;
+                        double angle4 = atan(d13 / y13);
+                        double angle5 = atan(d12 / x12);
+                        double angle6 = atan(v12 / u12);
+
+                        qDebug("angle6=%g,angle5=%g,angle4=%g\n",angle6,angle5,angle4);
 
 
 
 
-                            for (auto i = 0; i < 30; ++i) pipe1.wait_for_frames();
-                            for (auto&& frame : pipe1.wait_for_frames())
-                            {
-                                if (auto vf = frame.as<rs2::video_frame>())
-                                {
-                                    auto stream = frame.get_profile().stream_type();
-                                    if (vf.is<rs2::depth_frame>()) vf = color_map.process(frame);
-                                    std::stringstream png_file;
-                                    png_file << "/dev/shm/rs-save-to-disk-output-" << vf.get_profile().stream_name() << ".png";
-                                    stbi_write_png(png_file.str().c_str(), vf.get_width(), vf.get_height(),
-                                        vf.get_bytes_per_pixel(), vf.get_data(), vf.get_stride_in_bytes());
-                                    std::cout << "Saved " << png_file.str() << std::endl;
-                                }
-                            }
+                        JKrobot.disable_robot();
+                        Delay_MSec(2000);
+                        JKrobot.enable_robot();
+                        Delay_MSec(2000);
 
-                            //读取src
-                            src = imread("/dev/shm/rs-save-to-disk-output-Color.png");
-                            if (!src.data)
-                            {
-                                qDebug("could not load image...\n");
-                                return -1;
-                            }
+                        JKrobot.jog(5, INCR, COORD_TOOL,5,angle6);
+                        Delay_MSec(5000);
+                        JKrobot.jog(4, INCR, COORD_TOOL,5,angle4);
+                        Delay_MSec(5000);
+                        JKrobot.jog(3, INCR, COORD_TOOL,5,-angle5);
+                        Delay_MSec(5000);
 
-
-                        Rect rect(x1-100, y1-100, 300, 300);
-
-                        Mat img = src(rect);
-
-                            cvtColor(img, hsv1, COLOR_BGR2GRAY);
-
-                            GaussianBlur(hsv1, hsv1, Size(9, 9), 2, 2);
-
-
-                            vector<Vec3f> circles1;//进行霍夫圆变换
-                            HoughCircles(hsv1, circles1, CV_HOUGH_GRADIENT, 1, 10, 80, 40, 0, 0);
-                            int radius = cvRound(circles1[0][2]);
-                            int radius1 = cvRound(circles1[1][2]);
-                            int radius2 = cvRound(circles1[2][2]);
-
-                            for (size_t i = 0; i < circles1.size(); i++)
-                            {
-                                //参数定义
-                                Point center(cvRound(circles1[i][0]), cvRound(circles1[i][1]));
-                                int radius_r = cvRound(circles1[i][2]);
-                                circle(hsv1, center, 1, Scalar(255, 0, 0), -1, 8, 0);
-
-                                //绘制圆轮廓
-                                circle(hsv1, center, radius_r, Scalar(255, 0, 0), 2, 8, 0);
+                        JKrobot.jog_stop(0);
 
                             }
-                    //imshow("1",hsv1);
-                            //测距
-
-
-                    Delay_MSec(1000);
-
-
-
-
-
-                                dist_to_center = filtered.get_distance(cvRound(circles1[0][0]) + x1-100, cvRound(circles1[0][1]) + y1-100);
-                                dist_to_center1 = filtered.get_distance(cvRound(circles1[0][0]) + x1-100-1, cvRound(circles1[0][1]) + y1-100-1);
-                                dist_to_center2 = filtered.get_distance(cvRound(circles1[0][0]) + x1-100-1, cvRound(circles1[0][1]) + y1-100+1);
-                                dist_to_center3 = filtered.get_distance(cvRound(circles1[0][0]) + x1-100+1, cvRound(circles1[0][1]) + y1-100-1);
-                                dist_to_center4 = filtered.get_distance(cvRound(circles1[0][0]) + x1-100+1, cvRound(circles1[0][1]) + y1-100+1);
-                                dist_to_center = (dist_to_center+dist_to_center1+dist_to_center2+dist_to_center3+dist_to_center4)/5;
-
-                                dist_to_center11 = filtered.get_distance(cvRound(circles1[1][0]) + x1-100, cvRound(circles1[1][1]) + y1-100);
-                                dist_to_center12 = filtered.get_distance(cvRound(circles1[1][0]) + x1-100-1, cvRound(circles1[1][1]) + y1-100-1);
-                                dist_to_center13 = filtered.get_distance(cvRound(circles1[1][0]) + x1-100-1, cvRound(circles1[1][1]) + y1-100+1);
-                                dist_to_center14 = filtered.get_distance(cvRound(circles1[1][0]) + x1-100+1, cvRound(circles1[1][1]) + y1-100-1);
-                                dist_to_center15 = filtered.get_distance(cvRound(circles1[1][0]) + x1-100+1, cvRound(circles1[1][1]) + y1-100+1);
-                                dist_to_center1 = (dist_to_center11+dist_to_center12+dist_to_center13+dist_to_center14+dist_to_center15)/5;
-
-                                dist_to_center21 = filtered.get_distance(cvRound(circles1[2][0]) + x1-100, cvRound(circles1[2][1]) + y1-100);
-                                dist_to_center22 = filtered.get_distance(cvRound(circles1[2][0]) + x1-100-1, cvRound(circles1[2][1]) + y1-100-1);
-                                dist_to_center23 = filtered.get_distance(cvRound(circles1[2][0]) + x1-100-1, cvRound(circles1[2][1]) + y1-100+1);
-                                dist_to_center24 = filtered.get_distance(cvRound(circles1[2][0]) + x1-100+1, cvRound(circles1[2][1]) + y1-100-1);
-                                dist_to_center25 = filtered.get_distance(cvRound(circles1[2][0]) + x1-100+1, cvRound(circles1[2][1]) + y1-100+1);
-                                dist_to_center2 = (dist_to_center21+dist_to_center22+dist_to_center23+dist_to_center24+dist_to_center25)/5;
-
-                            //三个圆的排序
-                            vector<double>sy;
-                            sy.push_back(radius);
-                            sy.push_back(radius1);
-                            sy.push_back(radius2);
-                            sort(sy.begin(),sy.end());
-
-                            if(sy[0]==radius)
-                            {
-                                sz[0][0]=cvRound(circles1[0][0]);sz[0][1]=cvRound(circles1[0][1]);sz[0][2]=radius;sz[0][3]=dist_to_center * 1000;
-                            }
-                            else if(sy[0]==radius1)
-                            {
-                                sz[0][0]=cvRound(circles1[1][0]);sz[0][1]=cvRound(circles1[1][1]);sz[0][2]=radius1;sz[0][3]=dist_to_center1 * 1000;
-                            }
-                            else
-                            {
-                                 sz[0][0]=cvRound(circles1[2][0]);sz[0][1]=cvRound(circles1[2][1]);sz[0][2]=radius2;sz[0][3]=dist_to_center2 * 1000;
-                            }
-                            if(sy[1]==radius)
-                            {
-                                sz[1][0]=cvRound(circles1[0][0]);sz[1][1]=cvRound(circles1[0][1]);sz[1][2]=radius;sz[1][3]=dist_to_center * 1000;
-                            }
-                            else if(sy[1]==radius1)
-                            {
-                                sz[1][0]=cvRound(circles1[1][0]);sz[1][1]=cvRound(circles1[1][1]);sz[1][2]=radius1;sz[1][3]=dist_to_center1 * 1000;
-                            }
-                            else
-                            {
-                                 sz[1][0]=cvRound(circles1[2][0]);sz[1][1]=cvRound(circles1[2][1]);sz[1][2]=radius2;sz[1][3]=dist_to_center2 * 1000;
-                            }
-                            if(sy[2]==radius)
-                            {
-                                sz[2][0]=cvRound(circles1[0][0]);sz[2][1]=cvRound(circles1[0][1]);sz[2][2]=radius;sz[2][3]=dist_to_center * 1000;
-                            }
-                            else if(sy[2]==radius1)
-                            {
-                                sz[2][0]=cvRound(circles1[1][0]);sz[2][1]=cvRound(circles1[1][1]);sz[2][2]=radius1;sz[2][3]=dist_to_center1 * 1000;
-                            }
-                            else
-                            {
-                                 sz[2][0]=cvRound(circles1[2][0]);sz[2][1]=cvRound(circles1[2][1]);sz[2][2]=radius2;sz[2][3]=dist_to_center2 * 1000;
-                            }
-
-
-                            sum1=sz[0][0],sum2=sz[0][1],sum3=sz[0][2],sum4=sz[0][3],
-                            sum5=sz[1][0],sum6=sz[1][1],sum7=sz[1][2],sum8=sz[1][3],
-                            sum9=sz[2][0],sum10=sz[2][1],sum11=sz[2][2],sum12=sz[2][3];
-
-                           qDebug("x = %f,y = %f，r = %f,d = %f\n", sum1, sum2,sum3,sum4);
-                           qDebug("x = %f,y = %f，r = %f,d = %f\n", sum5, sum6,sum7,sum8);
-                           qDebug("x = %f,y = %f，r = %f,d = %f\n", sum9, sum10,sum11,sum12);
-
-                           //旋转角度计算与机械臂执行
-                           double  u1=sum1 + x1-100, v1=sum2 + y1-100,
-                                   u2=sum5 + x1-100, v2=sum6 + y1-100,
-                                   u3=sum9 + x1-100, v3=sum10 + y1-100;
-
-                           double X1, Y1, X2, Y2, X3, Y3;
-
-                           X1 = sum4 * (u1 - 630.4161376953125) / 920.81640625; Y1 = sum4 * (v1 - 373.34466552734375) / 919.99462890625;
-                           X2 = sum8 * (u2 - 630.4161376953125) / 920.81640625; Y2 = sum8 * (v2 - 373.34466552734375) / 919.99462890625;
-                           X3 = sum12 * (u3 - 630.4161376953125) / 920.81640625; Y3 = sum12 * (v3 - 373.34466552734375) / 919.99462890625;
-
-
-                           double d12 = sum4 - sum8;   //1-2
-                           double d13 = sum4 - sum12;   //1-3
-                           double x12 = X1 - X2;               //1-2
-                           double y12 = Y1 - Y2;               //1-2
-                           double y13 = Y1 - Y3;               //1-3
-
-                           double v12=v1-v2,u12=u1-u2;
-                           double angle4 = atan(d13 / y13);
-                           double angle5 = atan(d12 / x12);
-                           double angle6 = atan(v12 / u12);
-
-                           qDebug("angle6=%g,angle5=%g,angle4=%g\n",angle6/2,angle5/2,angle4/2);
-
-                           //if((angle6/2>0.00087)||(angle6/2<-0.00087))
-                           //{
-
-
-                           JKrobot.disable_robot();
-                           Delay_MSec(2000);
-                           JKrobot.enable_robot();
-                           Delay_MSec(2000);
-
-                           JKrobot.jog(5, INCR, COORD_TOOL,5,angle6);
-                           Delay_MSec(5000);
-                           JKrobot.jog(4, INCR, COORD_TOOL,5,-angle4);
-                           Delay_MSec(5000);
-                           JKrobot.jog(3, INCR, COORD_TOOL,5,-angle5);
-                           Delay_MSec(5000);
-
-                           JKrobot.jog_stop(0);
-
-                               //JointValue joint_pos6 = { 0 * PI / 180, 0 * PI / 180, 0 * PI / 180, 0 , 0 , angle6 };
-                               //JKrobot.joint_move(&joint_pos6, INCR, TRUE, 0.1);
-                               //JKrobot.jog(5, INCR, COORD_TOOL,5, angle6);
-                               //Delay_MSec(3000);
-                           //}
-                           //if((angle5/2>0.00087)||(angle5/2<-0.00087))
-                           //{
-                               //JointValue joint_pos5 = { 0 * PI / 180, 0 * PI / 180, 0 * PI / 180, 0 , -angle5 , 0 };
-                               //JKrobot.joint_move(&joint_pos5, INCR, TRUE, 0.1);
-                               //JKrobot.jog(3, INCR, COORD_TOOL,5, -angle5);
-                               //Delay_MSec(3000);
-                           //}
-
-                           //if((angle4/2>0.00087)||(angle4/2<-0.00087))
-                           //{
-                               //JointValue joint_pos4 = { 0 * PI / 180, 0 * PI / 180, 0 * PI / 180, angle4/2 , 0 , 0};
-                               //JKrobot.joint_move(&joint_pos4, INCR, TRUE, 0.1);
-                               //JKrobot.jog(4, INCR, COORD_TOOL,5,angle4);
-                               //Delay_MSec(2000);
-                               //JKrobot.jog_stop(0);
-                           //}
-
-
-
-                    GetRobotPosition (&tcp_posbd.tran.x,&tcp_posbd.tran.y,&tcp_posbd.tran.z,&tcp_posbd.rpy.rx,&tcp_posbd.rpy.ry,&tcp_posbd.rpy.rz);
-
-                        }
-
-
 
                         for (auto i = 0; i < 30; ++i) pipe1.wait_for_frames();
                     for (auto&& frame : pipe1.wait_for_frames())
@@ -978,85 +708,26 @@ public:
                      return -1;
                     }
 
-                    //灰度化
-                    cvtColor(src, hsv, COLOR_BGR2GRAY);
-                    GaussianBlur(hsv, hsv, Size(9, 9), 2, 2);
+                    DetectCircle detectCircle(src);
 
-
-                    vector<Vec3f> circles;
-                    //进行霍夫圆变换
-                    HoughCircles(hsv, circles, CV_HOUGH_GRADIENT, 1, 10, 80, 40, 0, 0);
-
-                    size_t i = 0;
-                    float dist_to_center;
-                    float dist_to_center1;
-                    float dist_to_center2;
-                    float dist_to_center3;
-                    float dist_to_center4;
-
-                    for ( i = 0; i < circles.size(); i++)
-                    {
-                        //参数定义
-                        Point center(cvRound(circles[i][0]), cvRound(circles[i][1]));
-                        int radius_r = cvRound(circles[i][2]);
-                        circle(hsv, center, 1, Scalar(255, 0, 0), -1, 8, 0);
-
-                        //绘制圆轮廓
-                        circle(hsv, center, radius_r, Scalar(255, 0, 0), 2, 8, 0);
-
-                        qDebug("x = %d,y = %d，r = %d, i=%d", cvRound(circles[i][0]), cvRound(circles[i][1]),radius_r,i);
-
-                        //测距算出实际直径进行3圆定位
-
-
-                            rs2::frameset data= pipe1.wait_for_frames();
-                            rs2::frameset aligned_set = align_to.process(data);
-                            rs2::depth_frame depth_frame = aligned_set.get_depth_frame();
-                            rs2::depth_frame filtered = depth_frame;
-                            filtered = thr_filter.process(filtered);
-                            filtered = depth_to_disparity.process(filtered);
-                            filtered = hole_filter.process(filtered);
-                            filtered = disparity_to_depth.process(filtered);
-                            filtered = spat_filter.process(filtered);
-                            filtered = tem_filter.process(filtered);
-
-                            dist_to_center = filtered.get_distance(cvRound(circles[i][0]), cvRound(circles[i][1]));
-                            dist_to_center1 = filtered.get_distance(cvRound(circles[i][0])-1, cvRound(circles[i][1])-1);
-                            dist_to_center2 = filtered.get_distance(cvRound(circles[i][0])-1, cvRound(circles[i][1])+1);
-                            dist_to_center3 = filtered.get_distance(cvRound(circles[i][0])+1, cvRound(circles[i][1])-1);
-                            dist_to_center4 = filtered.get_distance(cvRound(circles[i][0])+1, cvRound(circles[i][1])+1);
-
-                        dist_to_center = (dist_to_center+dist_to_center1+dist_to_center2+dist_to_center3+dist_to_center4)/5;
-                        std::cout << "The camera i1s facing an object " << dist_to_center << " meters away \r"<<std::endl;
-
-                        double rd = dist_to_center*1000 * ( 2 * radius_r ) / 920.81640625;
-
-                        qDebug("rd=%f",rd);
-
-                        if( rd>=13.5&&rd<=16.5)
-
+                    Vec3f goodCircle;
+                    float goodCircleOfDepth;
+                    for (auto circle : detectCircle.circleInfo) {
+                        float depthOfPoint = getPointDepth(Point(circle[0], circle[1]));
+                        float distance = depthOfPoint*1000 * ( 2 * circle[2] ) / 920.81640625;
+                        if (distance>=13.5 && distance<=16.5) {
+                            goodCircle = circle;
+                            goodCircleOfDepth = depthOfPoint;
                             break;
-
+                        }
+                        cout << circle << endl;
                     }
 
-                    qDebug("x = %d,y = %d, i=%d", cvRound(circles[i][0]), cvRound(circles[i][1]),i);
 
-                          //imshow("0",hsv);
-
-                    //int x1 = cvRound(circles[i][0]);
-                    //int y1 = cvRound(circles[i][1]);
-
-                    int x1 = 640;
-                    int y1 = 360;
-
-
-                    n(0, 0) = cvRound(circles[i][0]);
-                    n(1, 0) = cvRound(circles[i][1]);
+                    n(0, 0) = cvRound(goodCircle[0]);
+                    n(1, 0) = cvRound(goodCircle[1]);
                     n(2, 0) = 1.0;
-
-
-                    k = m * (dist_to_center*1000 * n);
-
+                    k = m * (goodCircleOfDepth*1000 * n);
 
                     double k1, k2, k3;
                     k1 = k(0, 0);
@@ -1064,26 +735,25 @@ public:
                     k3 = k(2, 0);
 
 
-
-
                     GetRobotPosition(&tcp_pos.tran.x, &tcp_pos.tran.y, &tcp_pos.tran.z, &tcp_pos.rpy.rx, &tcp_pos.rpy.ry, &tcp_pos.rpy.rz);
 
 
 
-                    cart.tran.x = tcp_pos.tran.x + 480 - dist_to_center*1000;; cart.tran.y = tcp_pos.tran.y + k1; cart.tran.z = tcp_pos.tran.z - k2;
+                    cart.tran.x = tcp_pos.tran.x + 480 - goodCircleOfDepth*1000; cart.tran.y = tcp_pos.tran.y + k1; cart.tran.z = tcp_pos.tran.z - k2;
                     cart.rpy.rx = tcp_pos.rpy.rx; cart.rpy.ry = tcp_pos.rpy.ry; cart.rpy.rz = tcp_pos.rpy.rz;
                     JKrobot.linear_move(&cart, MoveMode::ABS, TRUE, sysparaset.linearspeed);
 
 
                     GetRobotPosition (&tcp_posbd.tran.x,&tcp_posbd.tran.y,&tcp_posbd.tran.z,&tcp_posbd.rpy.rx,&tcp_posbd.rpy.ry,&tcp_posbd.rpy.rz);
 
-                        //if (j<10)
-                          return (0);//成功
 
-                         //else
-                          //return (2);//失败
+                          return (0);
+
+
 
                  }
+
+
 
 
                  int move2calibrationpos(int equidx)
