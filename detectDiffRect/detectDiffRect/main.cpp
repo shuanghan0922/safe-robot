@@ -120,9 +120,10 @@ public:
 
 int main()
 {
-    Mat sourceImg = imread("../detectDiffRect/image/-15.jpg");
+    Mat sourceImg = imread("../detectDiffRect/image/3.png");
     cvtColor(sourceImg, sourceImg, COLOR_BGR2GRAY);
-    imshow("sourceImg", sourceImg);
+//    dilate(sourceImg, sourceImg, Mat(), Point(-1, -1), 5);
+//    imshow("sourceImg", sourceImg);
 //    DetectCircle detectCircle(sourceImg);
 //    detectCircle.getCircles();
 //    detectCircle.printCircleInfo();
@@ -131,6 +132,10 @@ int main()
     detectRect.getCornersWitdhDepth();
     detectRect.printCorners();
 
+    for (auto i : detectRect.corners) {
+        circle(sourceImg, i, 7, Scalar(255));
+    }
+imshow("sourceImg", sourceImg);
     waitKey(0);
     destroyAllWindows();
     return 0;
