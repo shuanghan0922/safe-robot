@@ -46,27 +46,61 @@ public:
     DetectRect(Mat inputImg) : sourceImg(inputImg) {
 
     }
-//    void getPointDepth() {
-//        rs2::frameset data= pipe1.wait_for_frames();
-//        rs2::frameset aligned_set = align_to.process(data);
-//        rs2::depth_frame depth_frame = aligned_set.get_depth_frame();
-//        rs2::depth_frame filtered = depth_frame;
-//        filtered = thr_filter.process(filtered);
-//        filtered = depth_to_disparity.process(filtered);
-//        filtered = hole_filter.process(filtered);
-//        filtered = disparity_to_depth.process(filtered);
-//        filtered = spat_filter.process(filtered);
-//        filtered = tem_filter.process(filtered);
-//    }
+    float getPointDepth(Point point) {
+        //相机设置
+        rs2::colorizer color_map;
+        rs2::align align_to(RS2_STREAM_COLOR);
+        //rs2::pipeline pipe1;
+        //pipe1.start();
+        rs2::spatial_filter spat_filter;
+        rs2::threshold_filter thr_filter;
+        rs2::temporal_filter tem_filter;
+        rs2::hole_filling_filter hole_filter;
+        rs2::disparity_transform depth_to_disparity(true);
+        rs2::disparity_transform disparity_to_depth(false);
+        thr_filter.set_option(RS2_OPTION_MIN_DISTANCE, 0.0f);
+        thr_filter.set_option(RS2_OPTION_MAX_DISTANCE, 4.f);
+        spat_filter.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, 0.55f);
+        spat_filter.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, 20);
+        spat_filter.set_option(RS2_OPTION_FILTER_MAGNITUDE, 2);
+        spat_filter.set_option(RS2_OPTION_HOLES_FILL, 4);
+        tem_filter.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, 4);
+        tem_filter.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, 0.4f);
+        tem_filter.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, 20);
+        //信息配置
+        rs2::frameset data= pipe1.wait_for_frames();
+        rs2::frameset aligned_set = align_to.process(data);
+        rs2::depth_frame depth_frame = aligned_set.get_depth_frame();
+        rs2::depth_frame filtered = depth_frame;
+        filtered = thr_filter.process(filtered);
+        filtered = depth_to_disparity.process(filtered);
+        filtered = hole_filter.process(filtered);
+        filtered = disparity_to_depth.process(filtered);
+        filtered = spat_filter.process(filtered);
+        filtered = tem_filter.process(filtered);
+        //提取深度信息
+        vector<float> distacnceVector(5);
+        distacnceVector[0] = filtered.get_distance(cvRound(point.x), cvRound(point.y));
+        distacnceVector[1] = filtered.get_distance(cvRound(point.x)-1, cvRound(point.x)-1);
+        distacnceVector[2] = filtered.get_distance(cvRound(point.x)-1, cvRound(point.x)+1);
+        distacnceVector[3] = filtered.get_distance(cvRound(point.x)+1, cvRound(point.x)-1);
+        distacnceVector[4] = filtered.get_distance(cvRound(point.x)+1, cvRound(point.x)+1);
+
+        float pointDistance = 0;
+        for (auto i : distacnceVector)
+            pointDistance += i;
+
+        return pointDistance;
+    }
     void getCorners() {
         goodFeaturesToTrack(sourceImg, corners, 3, 0.1, 10);
-        for (auto rect : corners) { //add corners' depth info
-            cornersWithDepth.push_back(Vec3f(rect.x, rect.y, 0));
+        for (auto point : corners) { //add corners' depth info
+            cornersWithDepth.push_back( Vec3f(point.x, point.y, getPointDepth(point)) );
         }
     }
-    void printCorners() {
+    void printCornersWithDistance() {
         cout << "find " << corners.size() << " points" << endl;
-        for (auto i : corners)
+        for (auto i : cornersWithDepth)
             cout << i << endl;
     }
 };
@@ -414,42 +448,7 @@ public:
                             }
 
                             DetectRect detectRect(src);
-                            detectRect.printCorners();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                            detectRect.printCornersWithDistance();
 
 
 
@@ -490,7 +489,7 @@ public:
                                 //参数定义
                                 Point center(cvRound(circles[i][0]), cvRound(circles[i][1]));
                                 int radius_r = cvRound(circles[i][2]);
-                                circle(hsv, center, 1, Scalar(255, 0, 0), -1, 8, 0);
+                                circle(hsv, center, 1, Scalar(255, 0, 0), -1, 8, 0);    //圆心
 
                                 //绘制圆轮廓
                                 circle(hsv, center, radius_r, Scalar(255, 0, 0), 2, 8, 0);
