@@ -6,102 +6,130 @@
 using namespace std;
 using namespace cv;
 
-class DetectRect {
+class DetectCircle {
 public:
     Mat sourceImg;
-    vector<Point> corners;
+    vector<Vec3f> circleInfo;
+    DetectCircle(Mat inputImg) : sourceImg(inputImg) {
 
-    DetectRect(Mat inputImg) : sourceImg(inputImg) {
-
     }
-    DetectRect(string fileName) {
-        sourceImg = imread(fileName, CAP_MODE_GRAY);
+    void getCircles(double dp = 1, double minDist = 10) {
+        HoughCircles(sourceImg, circleInfo, HOUGH_GRADIENT, dp, minDist, 80, 40, 0, 0);
+        cout << (circleInfo.size() >= 1 ? "find circles" : "not find circles") << endl;
     }
-    void showImg() {
-        imshow("rectImg", sourceImg);
-    }
-    void getCorners() {
-        goodFeaturesToTrack(sourceImg, corners, 4, 0.1, 10);
-        cout << (corners.size() == 0 ? "未检测到角点" : "检测到角点") << endl;
-    }
-
-    void printCorners() {
-        for (auto i : corners)
+    void printCircleInfo() {
+        for (auto i : circleInfo)
             cout << i << endl;
     }
 };
 
-class DetectCircles {
+class DetectRect {
 public:
     Mat sourceImg;
-    vector<Vec3f> circles;
+    vector<Point> corners;
+    vector<Vec3f> cornersWithDepth;
 
-    DetectCircles(Mat inputImg) : sourceImg(inputImg) {
+    DetectRect(Mat inputImg) : sourceImg(inputImg) {
 
-    }
-    DetectCircles(string fileName) {
-        sourceImg = imread(fileName, CAP_MODE_GRAY);
-    }
-    void showImg() {
-        imshow("circlesImg", sourceImg);
-    }
-    void getCorners(double dp=1, double minDist=10) {
-        HoughCircles(sourceImg, circles, HOUGH_GRADIENT, dp, minDist);
-        cout << (circles.size() == 0 ? "未检测到圆" : "检测到圆") << endl;
     }
 
+    void sortConrersUseCircle() {
+        vector<Point> sortedCorner(3, Point(0, 0)); //maxDistance:0
+        DetectCircle detectCircle(sourceImg);
+        detectCircle.getCircles();
+        cout << "we have " << detectCircle.circleInfo.size() << " circles." << endl;
+        detectCircle.printCircleInfo();
+
+        //core
+        Vec3f circlePoint;
+        //if we have many circle, we get average
+        for (auto circle : detectCircle.circleInfo) {
+            circlePoint += circle;
+        }
+        circlePoint[0] /= detectCircle.circleInfo.size();
+        circlePoint[1] /= detectCircle.circleInfo.size();
+        circlePoint[2] /= detectCircle.circleInfo.size();
+        //get max distance of corner to circle center
+        float maxDistance = 0;
+        int maxNo = 0;
+        for (int i = 0; i < 3; i++) {
+            double distance = pow(corners[i].x - circlePoint[0], 2) + pow(corners[i].y - circlePoint[1], 2);
+            if (distance > maxDistance) {
+                maxDistance = distance;
+                maxNo = i;
+            }
+        }
+        cout << "maxDistance: " << maxDistance << ". maxNo: " << maxNo << endl;
+        sortedCorner[0] = corners[maxNo];   //maxDistance
+        switch (maxNo) {
+            case 0 : {
+                if (corners[1].x > corners[2].x) {
+                    sortedCorner[1] = corners[1];
+                    sortedCorner[2] = corners[2];
+                }
+                else {
+                    sortedCorner[1] = corners[2];
+                    sortedCorner[2] = corners[1];
+                }
+                break;
+            }
+            case 1 : {
+                if (corners[0].x > corners[2].x) {
+                    sortedCorner[1] = corners[0];
+                    sortedCorner[2] = corners[2];
+                }
+                else {
+                    sortedCorner[1] = corners[2];
+                    sortedCorner[2] = corners[0];
+                }
+                break;
+            }
+            case 2 : {
+                if (corners[0].x > corners[1].x) {
+                    sortedCorner[1] = corners[0];
+                    sortedCorner[2] = corners[1];
+                }
+                else {
+                    sortedCorner[1] = corners[1];
+                    sortedCorner[2] = corners[0];
+                }
+                break;
+            }
+        }
+        corners = sortedCorner; //sorted corners
+    }
+    void getCornersWitdhDepth() {
+        goodFeaturesToTrack(sourceImg, corners, 3, 0.1, 10);
+        //sort
+        sortConrersUseCircle();
+//        for (auto point : corners) { //add corners' depth info
+//            cornersWithDepth.push_back( Vec3f(point.x, point.y, getPointDepth(point)) );
+//        }
+    }
     void printCorners() {
-        for (auto c : circles)
-            cout << c << endl;
+        for (auto i : corners)
+            cout << i << endl;
+    }
+    void printCornersWithDistance() {
+        cout << "find " << corners.size() << " points" << endl;
+        for (auto i : cornersWithDepth)
+            cout << i << endl;
     }
 };
 
-Mat getCircles(Point center, int radius) {
-
-    Mat circleImg(300, 300, CV_8UC1, Scalar(255));
-    circle(circleImg, center, radius, Scalar(0));
-
-    return circleImg;
-}
 
 int main()
 {
-    DetectRect detectRect("../detectDiffRect/image/rects/110*110.png");
-    detectRect.showImg();
-//    detectRect.getCorners();
-//    detectRect.printCorners();
+    Mat sourceImg = imread("../detectDiffRect/image/-15.jpg");
+    cvtColor(sourceImg, sourceImg, COLOR_BGR2GRAY);
+    imshow("sourceImg", sourceImg);
+//    DetectCircle detectCircle(sourceImg);
+//    detectCircle.getCircles();
+//    detectCircle.printCircleInfo();
 
-    Mat circleImg = getCircles(Point(150, 150), 150);
-    DetectCircles detectCircles(circleImg);
-    detectCircles.showImg();
-//    detectCircles.getCorners();
-//    detectCircles.printCorners();
-
-
-    timeval timeStart, timeEnd;
-    gettimeofday(&timeStart, NULL);
-    for (int i = 1000; i > 0; i--) {
-        detectCircles.getCorners();
-    }
-    gettimeofday(&timeEnd, NULL);
-
-    float mTime = 1000000 * (timeEnd.tv_sec - timeStart.tv_sec) + timeEnd.tv_usec - timeStart.tv_usec;
-    mTime /= 1000000;
-    cout << "程序运行时间" << mTime << "秒" << endl;
-
-//    vector<Vec3f> circlesData = detectCircles.circles, result(1);
-
-//    for (size_t i = 0; i < circlesData.size(); i++) {
-//        result[0][0] += circlesData[i][0];
-//        result[0][1] += circlesData[i][1];
-//        result[0][2] += circlesData[i][2];
-//    }
-//    result[0][0] /= circlesData.size();
-//    result[0][1] /= circlesData.size();
-//    result[0][2] /= circlesData.size();
-//    for (auto i : result) {
-//        cout << i << endl;
-//    }
+    DetectRect detectRect(sourceImg);
+    detectRect.getCornersWitdhDepth();
+    detectRect.printCorners();
 
     waitKey(0);
     destroyAllWindows();

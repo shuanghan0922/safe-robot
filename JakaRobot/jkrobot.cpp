@@ -93,7 +93,7 @@ public:
     }
     void getCircles(double dp = 1, double minDist = 10) {
         HoughCircles(sourceImg, circleInfo, HOUGH_GRADIENT, dp, minDist, 80, 40, 0, 0);
-        cout << (circleInfo.size() >= 1 ? "find circles" : "not find circles");
+        cout << (circleInfo.size() >= 1 ? "find circles" : "not find circles") << endl;;
     }
     void printCircleInfo() {
         for (auto i : circleInfo)
@@ -180,6 +180,10 @@ public:
         for (auto point : corners) { //add corners' depth info
             cornersWithDepth.push_back( Vec3f(point.x, point.y, getPointDepth(point)) );
         }
+    }
+    void printCorners() {
+        for (auto i : corners)
+            cout << i << endl;
     }
     void printCornersWithDistance() {
         cout << "find " << corners.size() << " points" << endl;
@@ -610,6 +614,7 @@ public:
                             qDebug("x = %f,y = %f, d = %f\n", detectRect.cornersWithDepth[0][0],detectRect.cornersWithDepth[0][1], detectRect.cornersWithDepth[0][2]);
                             qDebug("x = %f,y = %f, d = %f\n", detectRect.cornersWithDepth[1][0],detectRect.cornersWithDepth[1][1], detectRect.cornersWithDepth[1][2]);
                             qDebug("x = %f,y = %f, d = %f\n", detectRect.cornersWithDepth[2][0],detectRect.cornersWithDepth[2][1], detectRect.cornersWithDepth[2][2]);
+                            
                             differ_x = fabs (detectRect.cornersWithDepth[0][0]-detectRect.cornersWithDepth[2][0]);
                             differ_y = fabs (detectRect.cornersWithDepth[0][1]-detectRect.cornersWithDepth[1][1]);
                             differ_z1 = fabs (detectRect.cornersWithDepth[0][2]-detectRect.cornersWithDepth[1][2]);
