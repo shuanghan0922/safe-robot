@@ -10,10 +10,7 @@ unix: CONFIG += link_pkgconfig
 unix: PKGCONFIG += opencv
 
 SOURCES += \
-        extractGraph/extractGraph.cpp \
-        main.cpp \
-        multipleImage/multipleImage.cpp
+        main.cpp
 
 HEADERS += \
-    extractGraph/extractGraph.h \
-    multipleImage/multipleImage.h
+        ../../detector/detector.h
