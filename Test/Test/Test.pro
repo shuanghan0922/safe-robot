@@ -9,6 +9,11 @@ unix: CONFIG += link_pkgconfig
 #opencv
 unix: PKGCONFIG += opencv
 
+#use realsense sdk2.0
+INCLUDEPATH += /usr/local/include/librealsense2
+LIBS += -L/usr/loacl/lib \
+        -lrealsense2
+
 SOURCES += \
         main.cpp
 
