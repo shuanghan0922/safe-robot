@@ -210,10 +210,10 @@ public:
         binayImg = bgrImg[1] - bgrImg[2];
         threshold(binayImg, binayImg, 10, 255, THRESH_BINARY);
         //闭运算去除噪点一次
-        morphologyEx(binayImg, binayImg, CV_MOP_CLOSE, Mat(), Point(-1, -1));
+        morphologyEx(binayImg, binayImg, MORPH_CLOSE, Mat(), Point(-1, -1));
         //识别轮廓
         vector<Mat> contours;
-        findContours(binayImg.clone(), contours, CV_RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+        findContours(binayImg.clone(), contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
         vector<Rect> contourRects;
         dstImg = sourceImg; //目标图
         for (size_t i = 0; i < contours.size(); i++) {
@@ -310,17 +310,20 @@ class KnobSwitch : public CellDetector
 {
 public:
     float angle = 0.0;
+    Mat knobSwitchTestImg;
     KnobSwitch(Mat inputImg) : CellDetector(inputImg){
     }
     void getKnobSwitch() {
-        cvtColor(sourceImg, binaryImg, CV_BGR2GRAY);
-        threshold(binaryImg, binaryImg, 30, 255, THRESH_BINARY_INV);
-        morphologyEx(binaryImg, binaryImg, CV_MOP_CLOSE, Mat(), Point(-1, -1));
+        cvtColor(sourceImg, binaryImg, COLOR_BGR2GRAY);
+        threshold(binaryImg, binaryImg, 20, 255, THRESH_BINARY_INV);
+        morphologyEx(binaryImg, binaryImg, MORPH_CLOSE, Mat(), Point(-1, -1));
+        erode(binaryImg, binaryImg, Mat(), Point(-1, -1));
+        dilate(binaryImg, binaryImg, Mat(), Point(-1, -1), 2);
         //获得轮廓和最小矩形框
         vector<Mat> contours;
         Rect maxRect;
         int maxContour = 0;
-        findContours(binaryImg.clone(), contours, CV_RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+        findContours(binaryImg.clone(), contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
         //获取最大矩形
         for (size_t i = 0; i < contours.size(); i++) {
            Rect tempRect = boundingRect(contours[i]);
@@ -340,6 +343,7 @@ public:
         RotatedRect rotatedRect = minAreaRect(contours[maxContour]);
         Point2i center(rotatedRect.center);
         circle(dstImg, center, 5, Scalar(255), 2);
+        knobSwitchTestImg = dstImg;
         site = center;  //位置
         angle = rotatedRect.angle;
     }
@@ -347,7 +351,7 @@ public:
         imshow("binaryImg", binaryImg);
     }
 
-private:
+//private:
     Mat binaryImg;
 };
 
