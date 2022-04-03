@@ -4,10 +4,31 @@
 using namespace std;
 
 
-
 int main()
 {
-    Mat sourceImg = imread("../../resource/image/knobSwitchTest.png");
+    Mat sourceImg = imread("../../resource/image/knobSwitch/knobSwitch3.png");
+////    Mat sourceImg = imread("../../resource/image/knobSwitch/knobSwitch4.png",
+////                           CAP_MODE_GRAY);
+//    imshow("sourceImg", sourceImg);
+//    Mat showImg;
+//    //方案1:叠加法
+//    sourceImg += sourceImg;
+//    sourceImg += sourceImg;
+//    showImg = sourceImg.clone();
+//    //方案2：水漫法
+////    Rect* rect = new Rect;
+////    floodFill(showImg, Point(sourceImg.rows/2, sourceImg.cols/2),
+////              Scalar(0), rect, Scalar(20), Scalar(0), FLOODFILL_FIXED_RANGE);
+//    //方案3：分水岭
+
+////    //方案4：mean-shift
+////    pyrMeanShiftFiltering(sourceImg, showImg, 3, 40);
+
+
+//    imshow("sourceImg", sourceImg);
+//    imshow("showImg", showImg);
+
+
     //旋钮开关
     KnobSwitch knobSwitch(sourceImg);
     knobSwitch.getKnobSwitch();

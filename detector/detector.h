@@ -314,11 +314,13 @@ public:
     KnobSwitch(Mat inputImg) : CellDetector(inputImg){
     }
     void getKnobSwitch() {
-        cvtColor(sourceImg, binaryImg, COLOR_BGR2GRAY);
-        threshold(binaryImg, binaryImg, 20, 255, THRESH_BINARY_INV);
-        morphologyEx(binaryImg, binaryImg, MORPH_CLOSE, Mat(), Point(-1, -1));
-        erode(binaryImg, binaryImg, Mat(), Point(-1, -1));
-        dilate(binaryImg, binaryImg, Mat(), Point(-1, -1), 2);
+        //方案1：叠加法
+        Mat overlayImg = sourceImg;
+        for (int i = 2; i > 0; i--)
+            overlayImg += overlayImg;
+        cvtColor(overlayImg, binaryImg, COLOR_BGR2GRAY);
+        //方案2：mean-shift
+
         //获得轮廓和最小矩形框
         vector<Mat> contours;
         Rect maxRect;

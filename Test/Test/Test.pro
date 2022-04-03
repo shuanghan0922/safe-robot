@@ -5,13 +5,9 @@ CONFIG -= qt
 
 INCLUDEPATH += /usr/local/include \
                 /usr/local/include/opencv
-                /usr/local/include/opencv2
-LIBS += /usr/local/lib/libopencv_* \
+                /usr/local/include/opencv2/*
+LIBS += /usr/local/lib/libopencv_*
 
-INCLUDEPATH += /usr/local/include/opencv4/opencv2\
-               /usr/local/include/opencv4/opencv2/imgproc\
-              /usr/local/include/opencv4
-DEPENDPATH += /usr/local/include/opencv4/opencv2\
 
 #use realsense sdk2.0
 INCLUDEPATH += /usr/local/include/librealsense2
