@@ -16,7 +16,7 @@ CC            = gcc
 CXX           = g++
 DEFINES       = -DQT_QML_DEBUG
 CFLAGS        = -pipe -g -Wall -W -fPIC $(DEFINES)
-CXXFLAGS      = -pipe -g -std=gnu++11 -Wall -W -fPIC $(DEFINES)
+CXXFLAGS      = -pipe -g -std=gnu++1y -Wall -W -fPIC $(DEFINES)
 INCPATH       = -I../Test -I. -isystem /usr/local/include -isystem /usr/local/include/opencv -isystem /usr/local/include/librealsense2 -I/home/beking/Qt5.12.10/5.12.10/gcc_64/mkspecs/linux-g++
 QMAKE         = /home/beking/Qt5.12.10/5.12.10/gcc_64/bin/qmake
 DEL_FILE      = rm -f

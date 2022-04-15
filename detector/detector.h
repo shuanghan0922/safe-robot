@@ -14,6 +14,7 @@ using namespace std;
 using namespace cv;
 
 #ifndef DEBUG_DETECTOR
+
 float getPointDepth(Point point) {
     //相机设置
     rs2::colorizer color_map;
@@ -60,7 +61,9 @@ float getPointDepth(Point point) {
 
     return pointDistance/5;
 }
+
 #endif
+namespace detect {
 
 //元件检测器
 class CellDetector {
@@ -80,9 +83,14 @@ public:
     void showDstImg() {
         imshow("dstImg", dstImg);
     }
+    void showBinaryImg() {
+        imshow("binaryImg", binaryImg);
+    }
+    friend void getPrivateData(CellDetector& cellDetector); //该函数用于外部调用内部私有变量
 protected:
     //结果图
     Mat dstImg;
+    Mat binaryImg;  //过程图
 };
 //圆检测器
 class DetectCircle :public CellDetector {
@@ -91,10 +99,12 @@ public:
     DetectCircle(Mat inputImg) : CellDetector(inputImg) {
 
     }
+    //获取圆，使用HoughCircles
     void getCircles(double dp = 1, double minDist = 10) {
         HoughCircles(sourceImg, circleInfo, HOUGH_GRADIENT, dp, minDist, 80, 40, 0, 0);
         cout << (circleInfo.size() >= 1 ? "find circles" : "not find circles") << endl;
     }
+    //打印所有圆的信息
     void printCircleInfo() {
         for (auto i : circleInfo)
             cout << i << endl;
@@ -202,18 +212,17 @@ public:
 
     AirSwitch(Mat inputImg) : CellDetector(inputImg){
     }
-
     bool isUp()
     {
         vector<Mat> bgrImg(3);
         split(sourceImg, bgrImg);
-        binayImg = bgrImg[1] - bgrImg[2];
-        threshold(binayImg, binayImg, 10, 255, THRESH_BINARY);
+        binaryImg = bgrImg[1] - bgrImg[2];
+        threshold(binaryImg, binaryImg, 10, 255, THRESH_BINARY);
         //闭运算去除噪点一次
-        morphologyEx(binayImg, binayImg, MORPH_CLOSE, Mat(), Point(-1, -1));
+        morphologyEx(binaryImg, binaryImg, MORPH_CLOSE, Mat(), Point(-1, -1));
         //识别轮廓
         vector<Mat> contours;
-        findContours(binayImg.clone(), contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+        findContours(binaryImg.clone(), contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
         vector<Rect> contourRects;
         dstImg = sourceImg; //目标图
         for (size_t i = 0; i < contours.size(); i++) {
@@ -233,11 +242,6 @@ public:
 
         return true;
     }
-    void showBinaryImg() {
-        imshow("diffImg", binayImg);
-    }
-private:
-    Mat binayImg;
 };
 
 #define BTN_RED     0
@@ -277,10 +281,12 @@ public:
 
         if (stdDevGreen > stdDevRed) {
             color = BtnColor::green;
+            dstImg = greenImg;
             btnState = stdDevGreen > THRESHOLD_STATE ? true : false;
         }
         else {
             color = BtnColor::red;
+            dstImg = redImg;
             btnState = stdDevRed > THRESHOLD_STATE ? true : false;
         }
     }
@@ -349,13 +355,10 @@ public:
         site = center;  //位置
         angle = rotatedRect.angle;
     }
-    void showBinaryImg() {
-        imshow("binaryImg", binaryImg);
-    }
 
-//private:
-    Mat binaryImg;
 };
+
+}
 
 
 #endif // DETECTOR_H

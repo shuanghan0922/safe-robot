@@ -2,6 +2,11 @@
 #include <../../detector/detector.h>
 
 using namespace std;
+//using namespace detect;
+
+void detect::getPrivateData(CellDetector& cellDetector) {
+    imshow("Test", cellDetector.binaryImg);
+}
 
 
 int main()
@@ -12,7 +17,7 @@ int main()
 //    imshow("sourceImg", sourceImg);
 //    Mat showImg;
 //    //方案1:叠加法
-//    sourceImg += sourceImg;
+//    sourceImg += sourceImg
 //    sourceImg += sourceImg;
 //    showImg = sourceImg.clone();
 //    //方案2：水漫法
@@ -29,13 +34,16 @@ int main()
 //    imshow("showImg", showImg);
 
 
-    //旋钮开关
-    KnobSwitch knobSwitch(sourceImg);
+//    //旋钮开关
+//    KnobSwitch knobSwitch(sourceImg);
+//    knobSwitch.getKnobSwitch();
+//    cout << knobSwitch.site << endl;
+//    cout << knobSwitch.angle << endl;
+//    knobSwitch.showDstImg();
+//    knobSwitch.showBinaryImg();
+    detect::KnobSwitch knobSwitch(sourceImg);
     knobSwitch.getKnobSwitch();
-    cout << knobSwitch.site << endl;
-    cout << knobSwitch.angle << endl;
-    knobSwitch.showDstImg();
-    knobSwitch.showBinaryImg();
+    getPrivateData(knobSwitch);
 
     //空气开关
 //    AirSwitch airSwitch(sourceImg);
@@ -51,3 +59,5 @@ int main()
     destroyAllWindows();
     return 0;
 }
+
+
