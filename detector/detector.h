@@ -257,7 +257,7 @@ public:
     BtnColor color;
     bool btnState;
     double mean=0, stdDev=0; //均值和标准差
-    int THRESHOLD_STATE = 50;
+    int THRESHOLD_STATE = 25;
 
     Btn(Mat inputImg) : CellDetector(inputImg) {
         color = BtnColor::blue;
@@ -307,8 +307,15 @@ public:
 
         mean = meanMat.at<double>(0, 0);
         stdDev = stdDevMat.at<double>(0, 0);
+//        std::cout << stdDev << std::endl;
 
         return (stdDev > THRESHOLD_STATE) ? true : false;
+    }
+    vector<Vec3f> getBtnSite() {
+        DetectCircle detectCircle(dstImg);
+        detectCircle.getCircles();
+
+        return detectCircle.circleInfo;
     }
 };
 //旋钮检测

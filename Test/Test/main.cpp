@@ -11,49 +11,21 @@ void detect::getPrivateData(CellDetector& cellDetector) {
 
 int main()
 {
-    Mat sourceImg = imread("../../resource/image/knobSwitch/knobSwitch3.png");
-////    Mat sourceImg = imread("../../resource/image/knobSwitch/knobSwitch4.png",
-////                           CAP_MODE_GRAY);
-//    imshow("sourceImg", sourceImg);
-//    Mat showImg;
-//    //方案1:叠加法
-//    sourceImg += sourceImg
-//    sourceImg += sourceImg;
-//    showImg = sourceImg.clone();
-//    //方案2：水漫法
-////    Rect* rect = new Rect;
-////    floodFill(showImg, Point(sourceImg.rows/2, sourceImg.cols/2),
-////              Scalar(0), rect, Scalar(20), Scalar(0), FLOODFILL_FIXED_RANGE);
-//    //方案3：分水岭
+    Mat sourceImg = imread("./image/img1.png");
 
-////    //方案4：mean-shift
-////    pyrMeanShiftFiltering(sourceImg, showImg, 3, 40);
+    imshow("sourceImg", sourceImg);
 
+    detect::Btn detectBtn(sourceImg, detect::BtnColor::green);
+    detectBtn.isLighted();
+    detectBtn.showDstImg();
 
-//    imshow("sourceImg", sourceImg);
-//    imshow("showImg", showImg);
+    vector<Vec3f> circles = detectBtn.getBtnSite();
 
-
-//    //旋钮开关
-//    KnobSwitch knobSwitch(sourceImg);
-//    knobSwitch.getKnobSwitch();
-//    cout << knobSwitch.site << endl;
-//    cout << knobSwitch.angle << endl;
-//    knobSwitch.showDstImg();
-//    knobSwitch.showBinaryImg();
-    detect::KnobSwitch knobSwitch(sourceImg);
-    knobSwitch.getKnobSwitch();
-    getPrivateData(knobSwitch);
-
-    //空气开关
-//    AirSwitch airSwitch(sourceImg);
-//    std::cout << airSwitch.isUp() << endl;
-//    airSwitch.showDstImg();
-
-//    //按钮
-//    Btn btn(sourceImg);
-//    btn.getBtn();
-//    cout << btn.btnState << endl;
+    std::cout << "stdDev" << detectBtn.stdDev << std::endl;
+    std::cout << "btnColor: " << detectBtn.color << std::endl;
+    std::cout << "isLight: " << detectBtn.isLighted() << std::endl;
+    for (auto c : circles)
+        std::cout << c << endl;
 
     waitKey(0);
     destroyAllWindows();
