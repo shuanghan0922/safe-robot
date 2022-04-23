@@ -1,4 +1,4 @@
-#include <../../detector/detector.h>
+#include "detector.h"
 
 
 #ifndef DEBUG_DETECTOR
@@ -9,39 +9,46 @@
 namespace detect {
 
 ///////////////////////圆检测类///////////////////////
-void DetectCircle::detect() {
-    int dp = 1, minDist = 10;
+void Circle::detect() {
     HoughCircles(sourceImg, circleInfo, HOUGH_GRADIENT, dp, minDist, 80, 40, 0, 0);
     cout << (circleInfo.size() >= 1 ? "find circles" : "not find circles") << endl;
 }
-void DetectCircle::printCircleInfo()  {
+void Circle::setDetectParams(int dp, int minDist) {
+    this->dp = dp;
+    this->minDist = minDist;
+}
+void Circle::printCircleInfo()  {
     for (auto i : circleInfo)
         cout << i << endl;
 }
 
 ///////////////////////角点检测///////////////////////
-void DetectRect::detect() {
-    goodFeaturesToTrack(sourceImg, corners, 3, 0.1, 10);
-    //sort
-    sortConrersUseCircle();
-    for (auto point : corners) { //add corners' depth info
-#ifndef DEBUG_DETECTOR
-        cornersWithDepth.push_back( Vec3f(point.x, point.y, getPointDepth(point)) );
-#endif
-    }
+void Corner::detect() {
+	goodFeaturesToTrack(sourceImg, corners, 3, 0.1, 10);
+	dstImg = sourceImg.clone();
+	for (auto c : corners) {
+	    circle(dstImg, c, 2, Scalar(255));
+	}
+	//sort
+	sortConrersUseCircle();
+	for (auto point : corners) { //add corners' depth info
+	#ifndef DEBUG_DETECTOR
+	    cornersWithDepth.push_back( Vec3f(point.x, point.y, getPointDepth(point + Point(In_parameter(0,2)-100, In_parameter(1,2)-100))) );
+	#endif
+	}
 }
-void DetectRect::printCorners() {
+void Corner::printCorners() {
     for (auto i : corners)
         cout << i << endl;
 }
-void DetectRect::printCornersWithDistance() {
+void Corner::printCornersWithDistance() {
     cout << "find " << corners.size() << " points" << endl;
     for (auto i : cornersWithDepth)
         cout << i << endl;
 }
-void DetectRect::sortConrersUseCircle() {
+void Corner::sortConrersUseCircle() {
     vector<Point> sortedCorner(3, Point(0, 0)); //maxDistance:0
-    DetectCircle detectCircle(sourceImg);
+    Circle detectCircle(sourceImg);
     detectCircle.detect();
     cout << "we have " << detectCircle.circleInfo.size() << " circles." << endl;
     detectCircle.printCircleInfo();
@@ -139,6 +146,7 @@ bool AirSwitch::isUp() {
 }
 
 ///////////////////////按钮检测///////////////////////
+//dstImg by color --> circles --> center,radius --> rect --> stdDev
 void Btn::detect() {
     //颜色三通道分割
     vector<Mat> bgrImg(3);
@@ -174,6 +182,21 @@ void Btn::detect() {
             case green: dstImg = bgrImg[1] - bgrImg[2];break;
             case blue: ;break;
         }
+        //dstImg保存了其初始差值图，使用binaryImg继承dstImg进行二值化，对二值化后的图检测圆
+        //之后根据dstImg中圆的位置，截取dstImg对应位置，检测亮灭
+        binaryImg = dstImg.clone();
+        threshold(binaryImg, binaryImg, 30, 255, THRESH_BINARY);
+        imwrite("../binaryImg.png", binaryImg);
+        //考虑只有一个圆的情况
+        Circle detectCircle(binaryImg);
+        detectCircle.setDetectParams(2, 10);
+        detectCircle.detect();
+        detectCircle.printCircleInfo();
+
+        site = Point(detectCircle.circleInfo[0][0], detectCircle.circleInfo[0][1]);
+        radius = detectCircle.circleInfo[0][2];
+        circles = detectCircle.circleInfo;
+
         //通过计算图片的均方差判断LED亮灭状态
         Mat meanMat, stdDevMat;
         meanStdDev(dstImg, meanMat, stdDevMat);
@@ -203,12 +226,16 @@ int Btn::getColor() {
     }
     return color;
 }
-vector<Vec3f> Btn::getSite() {
-    DetectCircle detectCircle(dstImg);
-    detectCircle.detect();
-
-    return detectCircle.circleInfo;
+Point Btn::getSite() {
+    return site;
 }
+float Btn::getRadius() {
+    return radius;
+}
+vector<Vec3f> Btn::getCircles() {
+    return circles;
+}
+
 vector<int> Btn::getMeanAndStdDev() {
     std::cout << "均值: " << mean << "标准差: " << stdDev << std::endl;
 
@@ -254,6 +281,105 @@ void KnobSwitch::getKnobSwitch() {
     knobSwitchTestImg = dstImg;
     site = center;  //位置
     angle = rotatedRect.angle;
+}
+
+/////////////////////////textRecongize/////////////////
+void TextRecongize::fourPointsTransform(const Mat& src, const Point2f vertices[], Mat& result){
+    const Size outputSize = Size(100, 32);
+    Point2f targetVertices[4] = {
+        Point(0, outputSize.height - 1),
+        Point(0, 0),
+        Point(outputSize.width - 1, 0),
+        Point(outputSize.width - 1, outputSize.height - 1)
+    };
+    Mat rotationMatrix = getPerspectiveTransform(vertices, targetVertices);
+
+    warpPerspective(src, result, rotationMatrix, outputSize);
+//显示检测区域
+/* #if 1
+    imshow("roi", result);
+    waitKey();
+#endif */
+}
+
+vector<string> TextRecongize::recongize_text(Mat src){
+    vector<string> text_result;
+
+    TextDetectionModel_DB detector(detModelPath);
+    detector.setBinaryThreshold(binThresh);
+    detector.setPolygonThreshold(polyThresh);
+    detector.setUnclipRatio(unclipRatio);
+    detector.setMaxCandidates(maxCandidates);
+
+    TextRecognitionModel recognizer(recModelPath);
+    recognizer.setDecodeType("CTC-greedy");
+
+    std::ifstream vocFile;
+    vocFile.open(samples::findFile(vocPath));
+    CV_Assert(vocFile.is_open());
+    String vocLine;
+    std::vector<String> vocabulary;
+    while (std::getline(vocFile, vocLine)) {
+        vocabulary.push_back(vocLine);
+    }
+
+    recognizer.setVocabulary(vocabulary);
+
+    //设置检测参数
+    Size detInputSize = Size(width, height);
+    Scalar detMean = Scalar(122.67891434, 116.66876762, 104.00698793);
+    detector.setInputParams(detScale, detInputSize, detMean);
+
+    //设置识别参数
+    Scalar recMean = Scalar(127.5);
+    Size recInputSize = Size(100, 32);
+    recognizer.setInputParams(recScale, recInputSize, recMean);
+
+    // 创建窗口
+    //static const std::string winName = "Text_Recongize";
+
+    std::vector< std::vector<Point> > detResults;
+    detector.detect(src, detResults);
+    numofText=detResults.size();
+
+    if (detResults.size() > 0) {
+        //文本识别
+        Mat recInput;
+        if (!imreadRGB) {
+            cvtColor(src, recInput, cv::COLOR_BGR2GRAY);
+        } else {
+            recInput = src;
+        }
+        std::vector< std::vector<Point> > contours;
+        for (uint i = 0; i < detResults.size(); i++)
+        {
+            const auto& quadrangle = detResults[i];
+            CV_CheckEQ(quadrangle.size(), (size_t)4, "");       //检测Mat是否为Vector，是否为4个点
+
+            contours.emplace_back(quadrangle);                      //插入数据到向量
+
+            std::vector<Point2f> quadrangle_2f;
+            for (int j = 0; j < 4; j++)
+                quadrangle_2f.emplace_back(quadrangle[j]);
+
+            // 转换和裁剪图像
+            Mat cropped;
+            TextRecongize::fourPointsTransform(recInput, &quadrangle_2f[0], cropped);
+
+            std::string recognitionResult = recognizer.recognize(cropped);
+            //std::cout << i << ": '" << recognitionResult << "'" << std::endl;
+            text_result.push_back(recognitionResult);
+
+            putText(src, recognitionResult, quadrangle[3], FONT_HERSHEY_SIMPLEX, 1, Scalar(0, 0, 255), 2);
+        }
+        polylines(src, contours, true, Scalar(0, 255, 0), 2);
+    } else {
+        std::cout << "No Text Detected." << std::endl;
+    }
+    imwrite("text_result.png",src);
+
+    return text_result ;
+
 }
 
 }
@@ -307,5 +433,6 @@ float getPointDepth(Point point) {
    return pointDistance/5;
 }
 #endif
+
 
 

@@ -11,21 +11,25 @@ void detect::getPrivateData(Detector& cellDetector) {
 
 int main()
 {
-    Mat sourceImg = imread("../../resource/image/btn/green0_red1.png");
+    Mat sourceImg = imread("../../resource/image/btn/green1_red0.png");
 
     imshow("sourceImg", sourceImg);
 
-    detect::Btn detectBtn(sourceImg, detect::BtnColor::red);
+    detect::Btn detectBtn(sourceImg, detect::BtnColor::green);
     detectBtn.detect();
     detectBtn.isLighted();
     detectBtn.showDstImg();
+    detectBtn.showBinaryImg();
 
-//    vector<Vec3f> circles = detectBtn.getSite();
+//    Mat circleImg = imread("../binaryImg.png");
+//    cvtColor(circleImg, circleImg, COLOR_BGR2GRAY);
+//    imshow("circleImg", circleImg);
+//    vector<Vec3f> outputCircles;
+//    HoughCircles(circleImg, outputCircles, HOUGH_GRADIENT, 2, 10, 100, 30, 0, 0);
+//    cout << outputCircles.size() << endl;
+//    for (auto c : outputCircles)
+//        cout << c << endl;
 
-
-//    std::cout << "isLight: " << detectBtn.isLighted() << std::endl;
-//    for (auto c : circles)
-//        std::cout << c << endl;
 
     waitKey(0);
     destroyAllWindows();

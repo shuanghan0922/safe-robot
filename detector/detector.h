@@ -1,17 +1,22 @@
 #ifndef DETECTOR_H
 #define DETECTOR_H
 
-#define DEBUG_DETECTOR  //detector调试码
+//#define DEBUG_DETECTOR  //detector调试码
 
 #include <iostream>
 #include <opencv2/opencv.hpp>
+#include<vector>
+#include <fstream>
+#include <opencv2/dnn/dnn.hpp>
 #include <librealsense2/rs.hpp>
+
 #ifndef DEBUG_DETECTOR
 #include <ComData.h>
 #endif
 
 using namespace std;
 using namespace cv;
+using namespace cv::dnn;
 
 #ifndef DEBUG_DETECTOR
 float getPointDepth(Point point);
@@ -52,25 +57,29 @@ protected:
     Mat binaryImg;  //过程图
 };
 //圆检测器
-class DetectCircle :public Detector {
+class Circle :public Detector {
 public:
     vector<Vec3f> circleInfo;
-    DetectCircle(Mat inputImg) : Detector(inputImg) {
+    Circle(Mat inputImg) : Detector(inputImg) {
 
     }
     /** @brief  重写来自基类的纯虚函数 霍夫检测圆
     */
     virtual void detect() override;
+    //设置检测圆参数
+    void setDetectParams(int dp = 1, int minDist = 10);
     //打印所有圆的信息
     void printCircleInfo();
+private:
+    int dp = 1, minDist = 10;
 };
 //角点检测
-class DetectRect : public Detector {
+class Corner : public Detector {
 public:
     vector<Point> corners;
     vector<Vec3f> cornersWithDepth;
 
-    DetectRect(Mat inputImg) : Detector(inputImg) {
+    Corner(Mat inputImg) : Detector(inputImg) {
     }
     /** @brief  重写来自基类的纯虚函数 获取角点和深度(已经排序好顺序点)
     */
@@ -111,6 +120,8 @@ public:
     /** @brief  重写来自基类的纯虚函数
     */
     virtual void detect() override;
+    //reload sourceImg
+//    void setSourceImg();
     /** @brief  判断btn状态
     */
     bool isLighted();
@@ -119,14 +130,18 @@ public:
     int getColor();
     /** @brief  获取按钮位置
     */
-    vector<Vec3f> getSite();
+    Point getSite();
+    float getRadius();
+    vector<Vec3f> getCircles();
     /** @brief  获取图像的均值和标准差
     */
     vector<int> getMeanAndStdDev();
 private:
     BtnColor color;
     bool state;
+    float radius;
     int THRESHOLD_STATE = 25;
+    vector<Vec3f> circles;
 };
 //旋钮检测
 class KnobSwitch : public Detector
@@ -143,7 +158,42 @@ public:
 
 };
 
+
+
+
+class TextRecongize{
+public:
+    int numofText=0;
+    //文本区域仿射变化预处理:将所有方框变成水平
+    void fourPointsTransform(const Mat& src, const Point2f vertices[], Mat& result);
+
+    //检测结果
+    vector<string> recongize_text(Mat src);
+
+    TextRecongize(){};
+    ~TextRecongize(){};
+
+private:
+    //DB文本检测模型参数
+    float binThresh = 0.3;
+    float polyThresh  = 0.5;
+    double unclipRatio = 2.0;
+    uint maxCandidates = 200;
+    int height = 736;
+    int width = 736;
+    cv::String detModelPath = "/home/xzh/JakaRobot/TEXT_RECONGIZE/recognition-text/DB_TD500_resnet50.onnx";
+    double detScale = 1.0 / 255.0;
+
+    //CRNN文本识别模型参数
+    cv::String recModelPath = "/home/xzh/JakaRobot/TEXT_RECONGIZE/recognition-text/crnn_cs_CN.onnx";
+    cv::String vocPath = "/home/xzh/JakaRobot/TEXT_RECONGIZE/recognition-text/alphabet_3944.txt";
+    int imreadRGB = 1;         //0：以灰度图读取图像   1：以彩色图读取图像
+    double recScale = 1.0 / 127.5;
+
+};
+
 }
 
 
 #endif // DETECTOR_H
+
