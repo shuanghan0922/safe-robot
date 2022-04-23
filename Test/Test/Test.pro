@@ -15,6 +15,7 @@ LIBS += -L/usr/loacl/lib \
         -lrealsense2
 
 SOURCES += \
+        ../../detector/detector.cpp \
         main.cpp
 
 HEADERS += \
