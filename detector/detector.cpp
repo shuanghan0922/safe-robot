@@ -18,6 +18,7 @@ void Circle::setDetectParams(int dp, int minDist) {
     this->minDist = minDist;
 }
 void Circle::printCircleInfo()  {
+    cout << "we have " << circleInfo.size() << " circles." << endl;
     for (auto i : circleInfo)
         cout << i << endl;
 }
@@ -146,7 +147,6 @@ bool AirSwitch::isUp() {
 }
 
 ///////////////////////按钮检测///////////////////////
-//dstImg by color --> circles --> center,radius --> rect --> stdDev
 void Btn::detect() {
     //颜色三通道分割
     vector<Mat> bgrImg(3);
@@ -176,41 +176,59 @@ void Btn::detect() {
         }
     }
     else {   //指定了按钮颜色
+        //输出颜色
+        cout << "该按钮的信息: 颜色:";
         switch (color)
         {
-            case red: dstImg = bgrImg[2] - bgrImg[0]; break;
-            case green: dstImg = bgrImg[1] - bgrImg[2];break;
-            case blue: ;break;
+        case red: dstImg = bgrImg[2] - bgrImg[0]; cout << "red"; break;
+        case green: dstImg = bgrImg[1] - bgrImg[2]; cout << "green"; break;
+        case blue: ;break;
         }
-        //dstImg保存了其初始差值图，使用binaryImg继承dstImg进行二值化，对二值化后的图检测圆
-        //之后根据dstImg中圆的位置，截取dstImg对应位置，检测亮灭
-        binaryImg = dstImg.clone();
-        threshold(binaryImg, binaryImg, 30, 255, THRESH_BINARY);
-        imwrite("../binaryImg.png", binaryImg);
-        //考虑只有一个圆的情况
-        Circle detectCircle(binaryImg);
-        detectCircle.setDetectParams(2, 10);
-        detectCircle.detect();
-        detectCircle.printCircleInfo();
-
-        site = Point(detectCircle.circleInfo[0][0], detectCircle.circleInfo[0][1]);
-        radius = detectCircle.circleInfo[0][2];
-        circles = detectCircle.circleInfo;
-
+        //检测圆的位置 改变dstImg的样式
+        detectCircles();
         //通过计算图片的均方差判断LED亮灭状态
         Mat meanMat, stdDevMat;
         meanStdDev(dstImg, meanMat, stdDevMat);
-
         mean = meanMat.at<double>(0, 0);
         stdDev = stdDevMat.at<double>(0, 0);
-//        std::cout << stdDev << std::endl;
 
         state =  (stdDev > THRESHOLD_STATE) ? true : false;
+        //输出状态
+        cout <<" 状态：";
+        state ? cout << "light" : cout << "dark";
+        cout << endl;
+        //输出坐标
+        cout << "位置与半径：" << this->circles << endl;
     }
 }
+void Btn::detectCircles() {
+    //dstImg保存了其初始差值图，使用binaryImg继承dstImg进行二值化，对二值化后的图检测识别轮廓
+    //对轮廓进行判别,图像比例约等于1,且面积最大的那个为圆
+    //之后根据dstImg中圆的位置，截取dstImg对应位置，检测亮灭
+    binaryImg = dstImg.clone();
+    threshold(binaryImg, binaryImg, 30, 255, THRESH_BINARY);
+//    imwrite("../binaryImg.png", binaryImg);
 
+    vector<vector<Point>> contours;
+    findContours(binaryImg.clone(), contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+    //找到最大外接矩形，且其比例将近1.0
+    Rect maxRect;
+    for (size_t i = 0; i < contours.size(); i++) {
+        Rect temp =  boundingRect(contours[i]);
+        if (temp.area() > maxRect.area() &&
+                (temp.width / temp.height >= 0.7 && temp.width / temp.height <= 1.3)) {
+            maxRect = temp;
+        }
+    }
+    //只截取一部分图片
+    Mat contoursImg = dstImg.clone().setTo(0);
+    dstImg = dstImg(maxRect);
+
+    //保存数据
+    this->circles = Vec3f(maxRect.x + maxRect.width/2, maxRect.y + maxRect.height/2,
+                          (maxRect.width+maxRect.height)/4);
+}
 bool Btn::isLighted() {
-    state ? cout << "light" << endl : cout << "Dark" << endl;
     return state;
 }
 int Btn::getColor() {
@@ -229,10 +247,7 @@ int Btn::getColor() {
 Point Btn::getSite() {
     return site;
 }
-float Btn::getRadius() {
-    return radius;
-}
-vector<Vec3f> Btn::getCircles() {
+Vec3f Btn::getCircles() {
     return circles;
 }
 
@@ -283,6 +298,7 @@ void KnobSwitch::getKnobSwitch() {
     angle = rotatedRect.angle;
 }
 
+#ifndef DEBUG_DETECTOR
 /////////////////////////textRecongize/////////////////
 void TextRecongize::fourPointsTransform(const Mat& src, const Point2f vertices[], Mat& result){
     const Size outputSize = Size(100, 32);
@@ -382,6 +398,7 @@ vector<string> TextRecongize::recongize_text(Mat src){
 
 }
 
+#endif
 }
 
 

@@ -1,7 +1,7 @@
 #ifndef DETECTOR_H
 #define DETECTOR_H
 
-//#define DEBUG_DETECTOR  //detector调试码
+#define DEBUG_DETECTOR  //detector调试码
 
 #include <iostream>
 #include <opencv2/opencv.hpp>
@@ -35,6 +35,11 @@ public:
     //虚函数 detect()检测器
     //纯虚函数 该类无法被实例化，且继承自它的子类必须override该函数
     virtual void detect() = 0;
+    /** @brief  重载源图
+    */
+    void loadSourceImg(cv::Mat& img) {
+        sourceImg = img;
+    }
     /** @brief  显示源图
     */
     void showSourceImg() {
@@ -120,8 +125,6 @@ public:
     /** @brief  重写来自基类的纯虚函数
     */
     virtual void detect() override;
-    //reload sourceImg
-//    void setSourceImg();
     /** @brief  判断btn状态
     */
     bool isLighted();
@@ -131,17 +134,17 @@ public:
     /** @brief  获取按钮位置
     */
     Point getSite();
-    float getRadius();
-    vector<Vec3f> getCircles();
+    Vec3f getCircles();
     /** @brief  获取图像的均值和标准差
     */
     vector<int> getMeanAndStdDev();
 private:
     BtnColor color;
     bool state;
-    float radius;
-    int THRESHOLD_STATE = 25;
-    vector<Vec3f> circles;
+    int THRESHOLD_STATE = 50;
+    Vec3f circles;
+    //获取btn中的圆
+    void detectCircles();
 };
 //旋钮检测
 class KnobSwitch : public Detector
@@ -157,10 +160,7 @@ public:
     void getKnobSwitch();
 
 };
-
-
-
-
+#ifndef DEBUG_DETECTOR
 class TextRecongize{
 public:
     int numofText=0;
@@ -191,7 +191,7 @@ private:
     double recScale = 1.0 / 127.5;
 
 };
-
+#endif
 }
 
 
