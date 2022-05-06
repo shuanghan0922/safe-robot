@@ -211,8 +211,12 @@ void Btn::detectCircles() {
 
     vector<vector<Point>> contours;
     findContours(binaryImg.clone(), contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+    if (contours.size() == 0) { //什么都没有检测到
+        std::cout << "什么都没有检测到，请确认拍的图片中是否有Btn." << std::endl;
+        return ;
+    }
     //找到最大外接矩形，且其比例将近1.0
-    Rect maxRect;
+    Rect maxRect{0, 0, 0, 0};
     for (size_t i = 0; i < contours.size(); i++) {
         Rect temp =  boundingRect(contours[i]);
         if (temp.area() > maxRect.area() &&

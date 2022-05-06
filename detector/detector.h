@@ -142,7 +142,7 @@ private:
     BtnColor color;
     bool state;
     int THRESHOLD_STATE = 50;
-    Vec3f circles;
+    Vec3f circles{0, 0, 0};
     //获取btn中的圆
     void detectCircles();
 };
