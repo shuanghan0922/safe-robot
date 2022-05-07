@@ -153,7 +153,7 @@ void Btn::detect() {
     split(sourceImg, bgrImg);
     //按钮的颜色没有被传参, 先获得按钮颜色
     if (color == BtnColor::other) {
-        //先列举每种颜色
+                //先列举每种颜色
         Mat redImg, greenImg, blueImg;
         redImg = bgrImg[2] - bgrImg[0];
         greenImg = bgrImg[1] - bgrImg[2];
@@ -180,10 +180,16 @@ void Btn::detect() {
         cout << "该按钮的信息: 颜色:";
         switch (color)
         {
-        case red: dstImg = bgrImg[2] - bgrImg[0]; cout << "red"; break;
-        case green: dstImg = bgrImg[1] - bgrImg[2]; cout << "green"; break;
-        case blue: ;break;
+        case red: {
+            dstImg = bgrImg[2] - bgrImg[0]; cout << "red"; break;
         }
+        case green: {
+            dstImg = bgrImg[1] - bgrImg[2]; cout << "green"; break;
+        }
+        case blue: ;break;
+        case other: ;break;
+        }
+//        cout << "here" << endl;
         //检测圆的位置 改变dstImg的样式
         detectCircles();
         //通过计算图片的均方差判断LED亮灭状态

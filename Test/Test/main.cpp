@@ -11,10 +11,10 @@ void detect::getPrivateData(Detector& cellDetector) {
 
 int main()
 {
-    Mat sourceImg = imread("../../resource/image/btn/red1Big.png");
+    Mat sourceImg = imread("../img1.png");
 
 
-    detect::Btn detectBtn(sourceImg, detect::BtnColor::red);
+    detect::Btn detectBtn(sourceImg, detect::BtnColor::green);
     detectBtn.detect();
     detectBtn.isLighted();
     detectBtn.showDstImg();
