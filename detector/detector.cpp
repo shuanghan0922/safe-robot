@@ -177,7 +177,7 @@ void Btn::detect() {
     }
     else {   //指定了按钮颜色
         //输出颜色
-        cout << "该按钮的信息: 颜色:";
+        cout << "该按钮的信息: 颜色: ";
         switch (color)
         {
         case red: {
@@ -189,54 +189,56 @@ void Btn::detect() {
         case blue: ;break;
         case other: ;break;
         }
-//        cout << "here" << endl;
         //检测圆的位置 改变dstImg的样式
-        detectCircles();
-        //通过计算图片的均方差判断LED亮灭状态
-        Mat meanMat, stdDevMat;
-        meanStdDev(dstImg, meanMat, stdDevMat);
-        mean = meanMat.at<double>(0, 0);
-        stdDev = stdDevMat.at<double>(0, 0);
+        if ( detectCircles() ) {    //检测圆成功
+            //通过计算图片的均方差判断LED亮灭状态
+            Mat meanMat, stdDevMat;
+            meanStdDev(dstImg, meanMat, stdDevMat);
+            mean = meanMat.at<double>(0, 0);
+            stdDev = stdDevMat.at<double>(0, 0);
 
-        state =  (stdDev > THRESHOLD_STATE) ? true : false;
-        //输出状态
-        cout <<" 状态：";
-        state ? cout << "light" : cout << "dark";
-        cout << endl;
-        //输出坐标
-        cout << "位置与半径：" << this->circles << endl;
+            state =  (stdDev > THRESHOLD_STATE) ? true : false;
+            //输出状态
+            cout <<" 状态："; state ? cout << "light" : cout << "dark"; cout << endl;
+            //输出坐标
+            cout << "位置与半径：" << this->circles << endl;
+        }
+        else {
+            cout << "检测Btn位置失败(请检查detectCircles)." << endl;
+        }
     }
 }
-void Btn::detectCircles() {
+bool Btn::detectCircles() {
     //dstImg保存了其初始差值图，使用binaryImg继承dstImg进行二值化，对二值化后的图检测识别轮廓
     //对轮廓进行判别,图像比例约等于1,且面积最大的那个为圆
     //之后根据dstImg中圆的位置，截取dstImg对应位置，检测亮灭
     binaryImg = dstImg.clone();
     threshold(binaryImg, binaryImg, 30, 255, THRESH_BINARY);
-//    imwrite("../binaryImg.png", binaryImg);
+//    imshow("../binaryImg.png", binaryImg);
 
     vector<vector<Point>> contours;
     findContours(binaryImg.clone(), contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
     if (contours.size() == 0) { //什么都没有检测到
-        std::cout << "什么都没有检测到，请确认拍的图片中是否有Btn." << std::endl;
-        return ;
+        std::cout << "没有检测到Btn轮廓，请确认拍的图片中是否有Btn." << std::endl;
+        imwrite("btnContours.png", binaryImg);
+        return false;
     }
+    Mat contoursImg = dstImg.clone().setTo(0);
     //找到最大外接矩形，且其比例将近1.0
     Rect maxRect{0, 0, 0, 0};
     for (size_t i = 0; i < contours.size(); i++) {
         Rect temp =  boundingRect(contours[i]);
         if (temp.area() > maxRect.area() &&
-                (temp.width / temp.height >= 0.7 && temp.width / temp.height <= 1.3)) {
+                ((float)temp.width / (float)temp.height >= 0.7 && (float)temp.width / (float)temp.height <= 1.3)) {
             maxRect = temp;
         }
     }
-    //只截取一部分图片
-    Mat contoursImg = dstImg.clone().setTo(0);
+    //只截取一部分图片    
     dstImg = dstImg(maxRect);
-
-    //保存数据
+    //保存圆数据
     this->circles = Vec3f(maxRect.x + maxRect.width/2, maxRect.y + maxRect.height/2,
                           (maxRect.width+maxRect.height)/4);
+    return true;
 }
 bool Btn::isLighted() {
     return state;

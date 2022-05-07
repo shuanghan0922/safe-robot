@@ -11,7 +11,7 @@ void detect::getPrivateData(Detector& cellDetector) {
 
 int main()
 {
-    Mat sourceImg = imread("../img1.png");
+    Mat sourceImg = imread("../../resource/image/btn/green1.png");
 
 
     detect::Btn detectBtn(sourceImg, detect::BtnColor::green);
