@@ -181,18 +181,21 @@ void Btn::detect() {
         switch (color)
         {
         case red: {
-            dstImg = bgrImg[2] - bgrImg[0]; cout << "red"; break;
+            dstImg = bgrImg[2] - bgrImg[0]; cout << "red "; break;
         }
         case green: {
-            dstImg = bgrImg[1] - bgrImg[2]; cout << "green"; break;
+            dstImg = bgrImg[1] - bgrImg[2]; cout << "green "; break;
         }
         case blue: ;break;
-        case other: ;break;
         }
         //检测圆的位置 改变dstImg的样式
         if ( detectCircles() ) {    //检测圆成功
             //通过计算图片的均方差判断LED亮灭状态
-            Mat meanMat, stdDevMat;
+            Mat meanMat, stdDevMat;          
+            if (dstImg.empty()) { //dstImg中内容为空
+                cout << "未检测到任何内容(预测图片中无Btn)" << endl;
+                return ;
+            }
             meanStdDev(dstImg, meanMat, stdDevMat);
             mean = meanMat.at<double>(0, 0);
             stdDev = stdDevMat.at<double>(0, 0);
@@ -204,7 +207,7 @@ void Btn::detect() {
             cout << "位置与半径：" << this->circles << endl;
         }
         else {
-            cout << "检测Btn位置失败(请检查detectCircles)." << endl;
+            cout << " 检测Btn位置失败(预测图片中无Btn)." << endl;
         }
     }
 }
@@ -219,8 +222,8 @@ bool Btn::detectCircles() {
     vector<vector<Point>> contours;
     findContours(binaryImg.clone(), contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
     if (contours.size() == 0) { //什么都没有检测到
-        std::cout << "没有检测到Btn轮廓，请确认拍的图片中是否有Btn." << std::endl;
-        imwrite("btnContours.png", binaryImg);
+        std::cout << " 没有检测到Btn轮廓，请确认拍的图片中是否有Btn." << std::endl;
+//        imwrite("btnContours.png", binaryImg);
         return false;
     }
     Mat contoursImg = dstImg.clone().setTo(0);
