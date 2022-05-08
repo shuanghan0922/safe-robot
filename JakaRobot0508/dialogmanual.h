@@ -397,6 +397,12 @@ private:
     }
 
     void on_pushButtonvon_clicked();
+    void on_btnConfrim_clicked();
+
+    void on_pushButtonok_clicked();
+
+public:
+//    QDialog* confirmDialog;
 };
 
 #endif // DIALOGMANUAL_H

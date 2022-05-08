@@ -73,7 +73,7 @@ bool gtestauto=false;//演示
 bool gbd=false;//展开标定
 bool camera_running=false;//视频采集，不启动
 rs2::pipeline pipe1;
- char *dirpf="/home/xzh/JakaRobot/pf";
+ char *dirpf="/home/hfut/JakaRobot/pf";
 //char *dirpf=$$PWD+"/pf";
 Webcmd *webcmd=new Webcmd();
 Dialogequset *dlgequ;

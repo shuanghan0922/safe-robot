@@ -1,3 +1,5 @@
+#ifndef _COMDATA_H
+#define _COMDATA_H
 
 #include <stdio.h>
 #include <sys/select.h>
@@ -322,4 +324,4 @@ int jk2initpos(QString id);//JAKA to initpos
 int kkposandequid2index(QString id,int pos);
 
 
-
+#endif

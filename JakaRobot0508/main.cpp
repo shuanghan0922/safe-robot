@@ -4,6 +4,7 @@
 //#include "ComData.h"
 #include  "connect.h"
 #include "dialoglogin.h"
+#include <opencv2/opencv.hpp>
 /************************
 //测试能否调用摄像头：
 #include <iostream>
@@ -48,5 +49,7 @@ int main(int argc, char *argv[])
 
     MainWindow w;
     w.show();
+    cv::waitKey(0);
+    cv::destroyAllWindows();
     return a.exec();
 }
