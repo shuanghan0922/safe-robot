@@ -1,7 +1,7 @@
 #ifndef DETECTOR_H
 #define DETECTOR_H
 
-//#define DEBUG_DETECTOR  //detector调试码
+#define DEBUG_DETECTOR  //detector调试码
 
 #include <iostream>
 #include <opencv2/opencv.hpp>
