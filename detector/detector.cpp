@@ -238,6 +238,7 @@ bool Btn::detectCircles() {
     }
     //只截取一部分图片    
     dstImg = dstImg(maxRect);
+    rect = maxRect;     //保存该最大矩形
     //保存圆数据
     this->circles = Vec3f(maxRect.x + maxRect.width/2, maxRect.y + maxRect.height/2,
                           (maxRect.width+maxRect.height)/4);
@@ -261,6 +262,11 @@ int Btn::getColor() {
 }
 Point Btn::getSite() {
     return site;
+}
+
+Rect Btn::getRect()
+{
+    return rect;
 }
 Vec3f Btn::getCircles() {
     return circles;

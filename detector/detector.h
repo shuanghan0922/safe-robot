@@ -37,23 +37,26 @@ public:
     virtual void detect() = 0;
     /** @brief  重载源图
     */
-    void loadSourceImg(cv::Mat& img) {
+    void reloadSourceImg(cv::Mat& img) {
         sourceImg = img;
     }
     /** @brief  显示源图
     */
-    void showSourceImg() {
-        imshow("sourceImg", sourceImg);
+    Mat showSourceImg(bool show = true) const {
+        if (show) imshow("sourceImg", sourceImg);
+        return sourceImg;
     }
     /** @brief  显示结果图
     */
-    void showDstImg() {
-        imshow("dstImg", dstImg);
+    Mat showDstImg(bool show = true) const {
+        if (show) imshow("dstImg", dstImg);
+        return dstImg;
     }
     /** @brief  显示二值图
     */
-    void showBinaryImg() {
-        imshow("binaryImg", binaryImg);
+    Mat showBinaryImg(bool show = true) const {
+        if (show) imshow("binaryImg", binaryImg);
+        return binaryImg;
     }
     friend void getPrivateData(Detector& cellDetector); //该函数用于外部调用内部私有变量
 protected:
@@ -134,6 +137,9 @@ public:
     /** @brief  获取按钮位置
     */
     Point getSite();
+    /** @brief  获取矩形位置
+    */
+    Rect getRect();
     Vec3f getCircles();
     /** @brief  获取图像的均值和标准差
     */
@@ -143,6 +149,7 @@ private:
     bool state;
     int THRESHOLD_STATE = 50;
     Vec3f circles{0, 0, 0};
+    Rect rect;
     //获取btn中的圆
     bool detectCircles();
 };
