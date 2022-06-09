@@ -371,7 +371,7 @@ DialogManual::DialogManual(QWidget *parent) :
 
     //video
     //ca=new Camera(640, 480, 320, 240, 30);
-    ca=new Camera(320, 240, 320, 240, 30);
+    ca=new Camera(320,240,320, 240, 30);//320, 240,
     //std::cout << "camera init failed\n" << std::endl;
     //ca=new Camera(320, 240, 320, 240, 30);
     //connect(ca, SIGNAL(framesReady()), this,SLOT(update()));
@@ -624,7 +624,7 @@ DialogManual::~DialogManual()
 void DialogManual::save_mjpeg()
 {
      QDateTime current_date_time = QDateTime::currentDateTime();
-     QString name("/home/xzh/CameraRead/");
+     QString name("/home/hfut/CameraRead/");
      QString current_date = current_date_time.toString("yyyy-MM-dd_hh:mm:ss");
      current_date.append(".jpg");
      name.append(current_date);
@@ -1857,7 +1857,7 @@ int DialogManual::getvideo()
 
 void DialogManual::on_pushButton_39_clicked()
 {
-    //dlgvideo->close();
+    test();
 }
 
 void DialogManual::on_pushButtonvon_clicked()
@@ -1872,5 +1872,24 @@ void DialogManual::on_pushButtonvon_clicked()
         camera_running=true;
         ui->pushButtonvon->setText("关闭");
     }
+
+}
+
+void DialogManual::on_btnConfrim_clicked()
+{
+    QMessageBox* confirmMessage = new QMessageBox(this);  //init
+    QMessageBox::StandardButton reply;
+    reply = confirmMessage->information(this, "确认或取消", "是否确认", QMessageBox::Ok, QMessageBox::Cancel);
+    if (reply == QMessageBox::Ok) {
+        std::cout << "你点击了确定" << std::endl;
+        confirm();
+    }
+    else if (reply == QMessageBox::Cancel) {
+        std::cout << "你点击了取消" << std::endl;
+    }
+}
+
+void DialogManual::on_pushButtonok_clicked()
+{
 
 }

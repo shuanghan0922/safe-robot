@@ -15,6 +15,7 @@ SOURCES += \
     WebSocketClient.cpp \
     WebSocketServer.cpp \
     camera.cpp \
+    detect/detector.cpp \
     dialogauto.cpp \
     dialogequset.cpp \
     dialoggl.cpp \
@@ -40,6 +41,7 @@ HEADERS += \
     WebSocketServer.h \
     camera.h \
     connect.h \
+    detect/detector.h \
     dialogauto.h \
     dialogequset.h \
     dialoggl.h \
@@ -115,7 +117,7 @@ LIBS += /usr/local/lib/libopencv_calib3d.so \
 /usr/local/lib/libopencv_stitching.so \
 /usr/local/lib/libopencv_videoio.so \
 /usr/local/lib/libopencv_video.so \
-/usr/local/lib/librealsense2.so
+/usr/lib/x86_64-linux-gnu/librealsense2.so
 
 LIBS += -lglut -lGLU -lGL\
 -lpthread\
@@ -123,7 +125,7 @@ LIBS += -lglut -lGLU -lGL\
 LIBS+=-L/usr/local/lib -lglfw3 -lX11 -lXrandr -lXinerama -lXi -lXxf86vm -lXcursor -lGL -lpthread -ldl
 
 #use realsense sdk2.0
-INCLUDEPATH += /usr/local/include/librealsense2
+INCLUDEPATH += /usr/include/librealsense2
 
 LIBS += -L/usr/loacl/lib \
 -lrealsense2
@@ -138,11 +140,11 @@ qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
-INCLUDEPATH += /home/xzh/JakaRobot/inc
-#LIBS += -L /home/xzh/JakaRobot/lib/ -ljakaAPI
+INCLUDEPATH += /home/hfut/JakaRobot/inc
+#LIBS += -L /home/hfut/JakaRobot/lib/ -ljakaAPI
 LIBS += -L $$PWD/lib/ -ljakaAPI
 
-#LIBS += /home/xzh/JakaRobot/lib/libjakaAPI.so
+#LIBS += /home/hfut/JakaRobot/lib/libjakaAPI.so
 
 QMAKE_LFLAGS_DEBUG = "-Wl,-rpath,$$PWD/lib"
 QMAKE_LFLAGS_RELEASE = "-Wl,-rpath,$$PWD/lib"

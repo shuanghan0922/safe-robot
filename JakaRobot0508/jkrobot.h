@@ -1,6 +1,7 @@
 #ifndef JKROBOT_H
 #define JKROBOT_H
 
+
 int Aspd();
 int RobotConnect();
 int RobotDisconnect();
@@ -15,4 +16,6 @@ int knob(int kkidx, int state, bool num);
  int operate (int kkidx, int state, bool num);
 void tight();
 void release();
+int confirm();
+int test();
 #endif // JKROBOT_H

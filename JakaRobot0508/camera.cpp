@@ -1,6 +1,7 @@
 #include "camera.h"
 #include <QImage>
 #include <QDebug>
+#include <iostream>
 #include "ComData.h"
 //#include "processImage.h"
 Camera::Camera(int rgb_width, int rgb_height, int depth_width, int depth_height, int fps)
@@ -15,10 +16,13 @@ Camera::Camera(int rgb_width, int rgb_height, int depth_width, int depth_height,
     {
         pipe1.start();//cfg
     }
-    catch(...)
+    catch(const rs2::error& e)
     {
-      qDebug()<<"ERROR:";//<<exception;
+      std::cerr<<"Realsense erro calling"<<e.get_failed_function()<<"("<<e.get_failed_args()<<"):\n"<<e.what()<<std::endl;//<<exception;
 
+    }catch(const std::exception& e)
+    {
+        std::cerr<<e.what()<<std::endl;
     }
 
 }
@@ -27,8 +31,10 @@ void Camera::run()
 {
     while(1)
     {
-     while(camera_running)
-     {
+    try{
+        while(camera_running)
+
+        {
         // Wait for frames and get them as soon as they are ready
         frames = pipe1.wait_for_frames();
         // Let's get our depth frame
@@ -42,6 +48,16 @@ void Camera::run()
         // And finally we'll emit our signal
         //emit framesReady();//, q_depth);
      }
+        }
+     catch(const rs2::error& e)
+     {
+       std::cerr<<"Realsense erro calling"<<e.get_failed_function()<<"("<<e.get_failed_args()<<"):\n"<<e.what()<<std::endl;//<<exception;
+
+     }catch(const std::exception& e)
+     {
+         std::cerr<<e.what()<<std::endl;
+     }
+
      if(!camera_running) usleep(100);
     }
 }
@@ -50,12 +66,12 @@ QImage Camera::realsenseFrameToQImage(const rs2::frame &f)
 {
     using namespace rs2;
     auto vf = f.as<video_frame>();
-    const int w = vf.get_width();
-    const int h = vf.get_height();
+    const int w = vf.get_width();//320;//
+    const int h = vf.get_height();//240;
     if (f.get_profile().format() == RS2_FORMAT_RGB8)
     {
         auto r = QImage((uchar*) f.get_data(), w, h, w*3, QImage::Format_RGB888);
-        len=f.get_data_size();
+        len=f.get_data_size();//320*240*3;//
         p=(uchar*) f.get_data();
         //qDebug()<<"w,h,len:"<<w<<","<<h<<","<<len;
         return r;

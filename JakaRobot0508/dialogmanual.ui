@@ -2207,7 +2207,20 @@
       </rect>
      </property>
      <property name="text">
-      <string>PushButton</string>
+      <string>test</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btnConfrim">
+     <property name="geometry">
+      <rect>
+       <x>700</x>
+       <y>530</y>
+       <width>89</width>
+       <height>25</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>confirm</string>
      </property>
     </widget>
    </widget>

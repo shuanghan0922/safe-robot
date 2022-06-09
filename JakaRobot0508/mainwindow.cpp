@@ -156,7 +156,7 @@ MainWindow::MainWindow(QWidget *parent)
 
        sysparaset.linearspeed=35;
        sysparaset.angularspeed=0.3;
-       sysparaset.errthreshold=1.0;
+       sysparaset.errthreshold=0.001;
 
       // sysparaset.bpppinchk=query.value(51).toBool();
      //  sysparaset.bcullconnectchk=query.value(52).toBool();
@@ -933,7 +933,7 @@ void MainWindow::S_recive(QString ClientInfo,QString message)
                        QJsonObject msgobj = object.value("args").toObject();
                        /* data键 */
                        QString file = msgobj.value("filename").toString();
-                       receiverFileName="/home/xzh/JakaRobot/pf/"+file;
+                       receiverFileName="/home/hfut/JakaRobot/pf/"+file;
                        brecvfile=true;
                     }
 
