@@ -1,5 +1,6 @@
 #include <iostream>
 #include "../../detector/detector.h"
+#include "../calibration/calibration/calibration.h"
 
 using namespace std;
 using namespace cv;
@@ -10,14 +11,23 @@ void btn();     //按钮标定
 
 int main()
 {
-//    string dir = "../../resource/image/calibration/btn/1.jpg";
-//    cv::Mat sourceImg = cv::imread(dir);
-//    detect::Btn btn(sourceImg, detect::BtnColor::green);
-//    btn.detect();
-//    btn.showgreenImg();
-//    cv::imshow("Test", sourceImg);
+    string dir = "../../resource/image/calibration/btn/1.jpg";
+    cv::Mat sourceImg = cv::imread(dir);
 
-    line();
+//    CalibrationLine *line = new CalibrationLine(sourceImg);
+//    line->detect();
+//    line->showDstImg();
+
+//    CalibrationSquare *square = new  CalibrationSquare(sourceImg);
+//    square->detect();
+
+    CalibrationBtn *btn = new CalibrationBtn(sourceImg);
+    btn->detect();
+    btn->showSourceImg();
+    btn->showDstImg();
+
+
+
 
     cv::waitKey(0);
     cv::destroyAllWindows();

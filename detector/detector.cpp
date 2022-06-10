@@ -25,8 +25,8 @@ void Circle::printCircleInfo()  {
 
 ///////////////////////角点检测///////////////////////
 void Corner::detect() {
-	goodFeaturesToTrack(sourceImg, corners, 3, 0.1, 10);
-	dstImg = sourceImg.clone();
+    goodFeaturesToTrack(sourceImg, corners, 3, 0.1, 10);
+    dstImg = sourceImg.clone();
 	for (auto c : corners) {
 	    circle(dstImg, c, 2, Scalar(255));
 	}
@@ -242,6 +242,7 @@ bool Btn::detectCircles() {
     //保存圆数据
     this->circles = Vec3f(maxRect.x + maxRect.width/2, maxRect.y + maxRect.height/2,
                           (maxRect.width+maxRect.height)/4);
+    site = Point(circles[0], circles[1]);
     return true;
 }
 bool Btn::isLighted() {

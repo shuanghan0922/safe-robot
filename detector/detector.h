@@ -24,13 +24,11 @@ float getPointDepth(Point point);
 namespace detect {
 
 //检测器基类
-class Detector {
+class AbstractDetector {
 public:
     //输入的原图
     Mat sourceImg;
-    //位置
-    Point site;
-    Detector(Mat inputImg) : sourceImg(inputImg) {};
+    AbstractDetector(Mat inputImg) : sourceImg(inputImg) {};
 
     //虚函数 detect()检测器
     //纯虚函数 该类无法被实例化，且继承自它的子类必须override该函数
@@ -58,17 +56,17 @@ public:
         if (show) imshow("binaryImg", binaryImg);
         return binaryImg;
     }
-    friend void getPrivateData(Detector& cellDetector); //该函数用于外部调用内部私有变量
+    friend void getPrivateData(AbstractDetector& cellDetector); //该函数用于外部调用内部私有变量
 protected:
     //结果图
     Mat dstImg;
     Mat binaryImg;  //过程图
 };
 //圆检测器
-class Circle :public Detector {
+class Circle :public AbstractDetector {
 public:
     vector<Vec3f> circleInfo;
-    Circle(Mat inputImg) : Detector(inputImg) {
+    Circle(Mat inputImg) : AbstractDetector(inputImg) {
 
     }
     /** @brief  重写来自基类的纯虚函数 霍夫检测圆
@@ -82,12 +80,12 @@ private:
     int dp = 1, minDist = 10;
 };
 //角点检测
-class Corner : public Detector {
+class Corner : public AbstractDetector {
 public:
     vector<Point> corners;
     vector<Vec3f> cornersWithDepth;
 
-    Corner(Mat inputImg) : Detector(inputImg) {
+    Corner(Mat inputImg) : AbstractDetector(inputImg) {
     }
     /** @brief  重写来自基类的纯虚函数 获取角点和深度(已经排序好顺序点)
     */
@@ -98,11 +96,11 @@ private:
     void sortConrersUseCircle();
 };
 //空开检测
-class AirSwitch : public Detector
+class AirSwitch : public AbstractDetector
 {
 public:
 
-    AirSwitch(Mat inputImg) : Detector(inputImg){};
+    AirSwitch(Mat inputImg) : AbstractDetector(inputImg){};
     /** @brief  重写来自基类的纯虚函数
     */
     virtual void detect() override;
@@ -115,15 +113,17 @@ enum BtnColor {
     red = 0, green, blue, other
 };
 //按钮检测
-class Btn : public Detector
+class Btn : public AbstractDetector
 {
 public:
+    //位置
+    Point site;
     double mean=0, stdDev=0; //均值和标准差
 
-    Btn(Mat inputImg) : Detector(inputImg) {
+    Btn(Mat inputImg) : AbstractDetector(inputImg) {
         color = BtnColor::other;
     }
-    Btn(Mat inputImg, BtnColor btnColor) : Detector(inputImg), color(btnColor){
+    Btn(Mat inputImg, BtnColor btnColor) : AbstractDetector(inputImg), color(btnColor){
     }
     /** @brief  重写来自基类的纯虚函数
     */
@@ -154,12 +154,14 @@ private:
     bool detectCircles();
 };
 //旋钮检测
-class KnobSwitch : public Detector
+class KnobSwitch : public AbstractDetector
 {
 public:
+    //位置
+    Point site;
     float angle = 0.0;
     Mat knobSwitchTestImg;
-    KnobSwitch(Mat inputImg) : Detector(inputImg){
+    KnobSwitch(Mat inputImg) : AbstractDetector(inputImg){
     }
     /** @brief  重写来自基类的纯虚函数
     */

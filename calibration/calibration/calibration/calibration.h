@@ -2,33 +2,84 @@
 #define CALIBRATION_H
 #include <../../detector/detector.h>
 
-//使用
-//定位方法选择
+#define HIDDEN __attribute__((visibility("hidden")))
+//使用设计模式中的工厂设计模式
 
-class Calibration
-{
-public:
-    Calibration();
-};
+//定义一个标定的抽象类
+class AbstractCalibration {
 
-//按钮法标定
-class MethodBtn {
 public:
-    MethodBtn();
+    AbstractCalibration();
 
 };
 
-//线法标定
-class MethodLine {
-public:
-    MethodLine();
 
+class Calibration : public detect::AbstractDetector {
+public:
+    Calibration(cv::Mat sourceImg) : AbstractDetector(sourceImg){};
+    Calibration(cv::Mat sourceImg, const string &method);
+
+    virtual void detect() override {
+        std::cout << "Calibration" << std::endl;
+    }
+private:
+    string m_method;
 };
 
-//矩形法标定
-class MethodSquare {
+//按钮标定
+class CalibrationBtn : public Calibration {
+
 public:
-    MethodSquare();
+    CalibrationBtn(cv::Mat img) : Calibration(img) {
+
+    }
+    virtual void detect() override;
+    vector<cv::Point> getPoints() const {
+        return point;
+    }
+private:
+    vector<cv::Point> point;
 };
+
+//交叉线标定
+class CalibrationLine : public Calibration {
+
+public:
+    CalibrationLine(cv::Mat img) : Calibration(img) {
+
+    }
+    virtual void detect() override;
+    void showAllCornerImg() const {
+        cv::imshow("line-allCornerImg", allCornerImg);
+    }
+private:
+    cv::Mat allCornerImg;
+};
+
+//矩形框标定
+class CalibrationSquare : public Calibration {
+
+public:
+    CalibrationSquare(cv::Mat img) : Calibration(img) {
+
+    }
+    virtual void detect() override;
+    vector<cv::Point> getPoints() const {
+        return point;
+    }
+private:
+    vector<cv::Point> point;
+};
+
+
+////标定方法
+//class CalibrationMethod {
+
+//private:
+//    CalibrationMethod(){};
+//public:
+//    static Calibration getMethodObject(const string &method);
+//};
+
 
 #endif // CALIBRATION_H
