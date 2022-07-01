@@ -8,9 +8,16 @@
 //类
 namespace detect {
 
-///////////////////////圆检测类///////////////////////
+/***********************检测抽象基类***************************/
+AbstractDetector::~AbstractDetector()
+{
+
+}
+
+
+/***********************圆检测***************************/
 void Circle::detect() {
-    HoughCircles(sourceImg, circleInfo, HOUGH_GRADIENT, dp, minDist, 80, 40, 0, 0);
+    HoughCircles(m_sourceImg, circleInfo, HOUGH_GRADIENT, dp, minDist, 80, 40, 0, 0);
     cout << (circleInfo.size() >= 1 ? "find circles" : "not find circles") << endl;
 }
 void Circle::setDetectParams(int dp, int minDist) {
@@ -23,12 +30,12 @@ void Circle::printCircleInfo()  {
         cout << i << endl;
 }
 
-///////////////////////角点检测///////////////////////
+/***********************角点检测**************************/
 void Corner::detect() {
-    goodFeaturesToTrack(sourceImg, corners, 3, 0.1, 10);
-    dstImg = sourceImg.clone();
+    goodFeaturesToTrack(m_sourceImg, corners, 3, 0.1, 10);
+    m_dstImg = m_sourceImg.clone();
 	for (auto c : corners) {
-	    circle(dstImg, c, 2, Scalar(255));
+        circle(m_dstImg, c, 2, Scalar(255));
 	}
 	//sort
 	sortConrersUseCircle();
@@ -49,7 +56,7 @@ void Corner::printCornersWithDistance() {
 }
 void Corner::sortConrersUseCircle() {
     vector<Point> sortedCorner(3, Point(0, 0)); //maxDistance:0
-    Circle detectCircle(sourceImg);
+    Circle detectCircle(m_sourceImg);
     detectCircle.detect();
     cout << "we have " << detectCircle.circleInfo.size() << " circles." << endl;
     detectCircle.printCircleInfo();
@@ -113,22 +120,62 @@ void Corner::sortConrersUseCircle() {
     corners = sortedCorner; //sorted corners
 }
 
-///////////////////////空开检测///////////////////////
+/***********************空开检测**************************/
+AirSwitch::AirSwitch(Mat inputImg) :
+    AbstractDetector(inputImg) {
+
+    m_airSwitch = nullptr;
+}
+
+AirSwitch::AirSwitch(Mat inputImg, AirSwitchType type) :
+    AbstractDetector(inputImg),
+    m_type(type) {
+
+    switch (type) {
+    case type2:
+        m_airSwitch = new _AirSwitch2(m_sourceImg);
+        break;
+    case type3:
+        m_airSwitch = new _AirSwitch3(m_sourceImg);
+        break;
+    case type211:
+        m_airSwitch = new _AirSwitch211(m_sourceImg);
+        break;
+    default:
+        std::cout << "请输入正确的空开类型" << std::endl;
+        break;
+    }
+
+}
+AirSwitch::~AirSwitch()
+{
+    delete m_airSwitch;
+}
 void AirSwitch::detect() {
+    m_airSwitch->detect();
+    this->m_dstImg = m_airSwitch->m_dstImg;
+    this->m_midImg = m_airSwitch->m_midImg;
+}
+bool AirSwitch::isUp() {
+   return m_airSwitch->m_state;
+}
+//空开类型1
+void _AirSwitch2::detect()
+{
     vector<Mat> bgrImg(3);
-    split(sourceImg, bgrImg);
-    binaryImg = bgrImg[1] - bgrImg[2];
-    threshold(binaryImg, binaryImg, 10, 255, THRESH_BINARY);
+    split(m_sourceImg, bgrImg);
+    m_midImg = bgrImg[1] - bgrImg[2];
+    threshold(m_midImg, m_midImg, 10, 255, THRESH_BINARY);
     //闭运算去除噪点一次
-    morphologyEx(binaryImg, binaryImg, MORPH_CLOSE, Mat(), Point(-1, -1));
+    morphologyEx(m_midImg, m_midImg, MORPH_CLOSE, Mat(), Point(-1, -1));
     //识别轮廓
     vector<Mat> contours;
-    findContours(binaryImg.clone(), contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+    findContours(m_midImg.clone(), contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
     vector<Rect> contourRects;
-    dstImg = sourceImg; //目标图
+    m_dstImg = m_sourceImg; //目标图
     for (size_t i = 0; i < contours.size(); i++) {
         contourRects.push_back(boundingRect(contours[i]));  //最小矩形
-        rectangle(dstImg, contourRects[i], Scalar(255));   //画出矩形
+        rectangle(m_dstImg, contourRects[i], Scalar(255));   //画出矩形
     }
     int rectsNum = contourRects.size();
     cout << "have " << rectsNum << " rects." << endl;
@@ -137,20 +184,36 @@ void AirSwitch::detect() {
     if (rectsNum < 1)
         cout << "无法识别空气开关状态，请退出后调试." << endl;
     else if (rectsNum == 1)
-        state =  true;
+        m_state =  true;
     else
-        state =  false;
+        m_state =  false;
+}
+//空开类型2
+void _AirSwitch3::detect()
+{
+
+}
+//空开类型3
+void _AirSwitch211::detect() {
+    vector<Mat> bgrImg(3);
+    split(m_sourceImg, bgrImg);
+    m_midImg = bgrImg[2];
+    //叠加法
+    for (int i = 1; i > 0; i--)
+        m_midImg += m_midImg;
+
+    //12, 20, 17, 25.5
+    threshold(m_midImg, m_dstImg, 220, 255, THRESH_TOZERO_INV);
+    threshold(m_dstImg, m_dstImg, 200, 255, THRESH_BINARY);
+//    floodFill(m_midImg, Point(76, 124), Scalar(255), 0, Scalar(5), Scalar(10), 4 |
+//              FLOODFILL_FIXED_RANGE);
 }
 
-bool AirSwitch::isUp() {
-   return state;
-}
-
-///////////////////////按钮检测///////////////////////
+/***********************按钮检测**************************/
 void Btn::detect() {
     //颜色三通道分割
     vector<Mat> bgrImg(3);
-    split(sourceImg, bgrImg);
+    split(m_sourceImg, bgrImg); //BGR
     //按钮的颜色没有被传参, 先获得按钮颜色
     if (color == BtnColor::other) {
                 //先列举每种颜色
@@ -166,12 +229,12 @@ void Btn::detect() {
 
         if (stdDevGreen > stdDevRed) {
             color = BtnColor::green;
-            dstImg = greenImg;
+            m_dstImg = greenImg;
             state = stdDevGreen > THRESHOLD_STATE ? true : false;
         }
         else {
             color = BtnColor::red;
-            dstImg = redImg;
+            m_dstImg = redImg;
             state = stdDevRed > THRESHOLD_STATE ? true : false;
         }
     }
@@ -181,22 +244,23 @@ void Btn::detect() {
         switch (color)
         {
         case red: {
-            dstImg = bgrImg[2] - bgrImg[0]; cout << "red "; break;
+            m_dstImg = bgrImg[2] - bgrImg[0]; cout << "red "; break;
         }
         case green: {
-            dstImg = bgrImg[1] - bgrImg[2]; cout << "green "; break;
+            m_dstImg = bgrImg[1] - bgrImg[2]; cout << "green "; break;
         }
         case blue: ;break;
         }
+//        imshow("../dstImg.png", dstImg);
         //检测圆的位置 改变dstImg的样式
         if ( detectCircles() ) {    //检测圆成功
             //通过计算图片的均方差判断LED亮灭状态
             Mat meanMat, stdDevMat;          
-            if (dstImg.empty()) { //dstImg中内容为空
+            if (m_dstImg.empty()) { //dstImg中内容为空
                 cout << "未检测到任何内容(预测图片中无Btn)" << endl;
                 return ;
             }
-            meanStdDev(dstImg, meanMat, stdDevMat);
+            meanStdDev(m_dstImg, meanMat, stdDevMat);
             mean = meanMat.at<double>(0, 0);
             stdDev = stdDevMat.at<double>(0, 0);
 
@@ -215,18 +279,18 @@ bool Btn::detectCircles() {
     //dstImg保存了其初始差值图，使用binaryImg继承dstImg进行二值化，对二值化后的图检测识别轮廓
     //对轮廓进行判别,图像比例约等于1,且面积最大的那个为圆
     //之后根据dstImg中圆的位置，截取dstImg对应位置，检测亮灭
-    binaryImg = dstImg.clone();
-    threshold(binaryImg, binaryImg, 30, 255, THRESH_BINARY);
+    m_midImg = m_dstImg.clone();
+    threshold(m_midImg, m_midImg, 30, 255, THRESH_BINARY);
 //    imshow("../binaryImg.png", binaryImg);
 
     vector<vector<Point>> contours;
-    findContours(binaryImg.clone(), contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+    findContours(m_midImg.clone(), contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
     if (contours.size() == 0) { //什么都没有检测到
         std::cout << " 没有检测到Btn轮廓，请确认拍的图片中是否有Btn." << std::endl;
 //        imwrite("btnContours.png", binaryImg);
         return false;
     }
-    Mat contoursImg = dstImg.clone().setTo(0);
+    Mat contoursImg = m_dstImg.clone().setTo(0);
     //找到最大外接矩形，且其比例将近1.0
     Rect maxRect{0, 0, 0, 0};
     for (size_t i = 0; i < contours.size(); i++) {
@@ -237,7 +301,7 @@ bool Btn::detectCircles() {
         }
     }
     //只截取一部分图片    
-    dstImg = dstImg(maxRect);
+    m_dstImg = m_dstImg(maxRect);
     rect = maxRect;     //保存该最大矩形
     //保存圆数据
     this->circles = Vec3f(maxRect.x + maxRect.width/2, maxRect.y + maxRect.height/2,
@@ -279,23 +343,46 @@ vector<int> Btn::getMeanAndStdDev() {
     return vector<int>(mean, stdDev);
 }
 
-///////////////////////旋钮检测///////////////////////
-void KnobSwitch::detect() {
+/***********************旋钮检测**************************/
+KnobSwitch::KnobSwitch(Mat inputImg, KnobSwitchType method) :
+    AbstractDetector(inputImg),
+    m_method(method) {
 
+    switch (m_method) {
+    case twoHand:
+        m_knobSwitch = new _KnobSwitchTowHand(m_sourceImg);
+        break;
+    case oneHand:
+        m_knobSwitch = new _KnobSwitchOneHand(m_sourceImg);
+        break;
+    default:
+        std::cout << "请输入正确的旋钮识别方法" << std::endl;
+        break;
+    }
 }
-void KnobSwitch::getKnobSwitch() {
-    //方案1：叠加法
-    Mat overlayImg = sourceImg;
+
+void KnobSwitch::detect() {
+    m_knobSwitch->detect();
+    this->m_dstImg = m_knobSwitch->m_dstImg;
+    this->m_midImg = m_knobSwitch->m_midImg;
+}
+//单头无标记
+void _KnobSwitchOneHand::detect()
+{
+    //叠加
+    Mat overlayImg = m_sourceImg.clone();
     for (int i = 2; i > 0; i--)
         overlayImg += overlayImg;
-    cvtColor(overlayImg, binaryImg, COLOR_BGR2GRAY);
-    //方案2：mean-shift
+    cvtColor(overlayImg, m_midImg, COLOR_BGR2GRAY);
+    threshold(m_midImg, m_midImg, 170, 255, THRESH_BINARY_INV);
+    blur(m_midImg, m_midImg, Size(3, 3));
+    erode(m_midImg, m_midImg, Mat(), Point(-1, -1), 3);
 
     //获得轮廓和最小矩形框
     vector<Mat> contours;
     Rect maxRect;
     int maxContour = 0;
-    findContours(binaryImg.clone(), contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+    findContours(m_midImg.clone(), contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
     //获取最大矩形
     for (size_t i = 0; i < contours.size(); i++) {
        Rect tempRect = boundingRect(contours[i]);
@@ -310,18 +397,69 @@ void KnobSwitch::getKnobSwitch() {
            }
        }
     }
-    dstImg = sourceImg.clone();
+    m_dstImg = m_sourceImg.clone();
     //获得最小矩形(可斜着)
     RotatedRect rotatedRect = minAreaRect(contours[maxContour]);
-    Point2i center(rotatedRect.center);
-    circle(dstImg, center, 5, Scalar(255), 2);
-    knobSwitchTestImg = dstImg;
-    site = center;  //位置
-    angle = rotatedRect.angle;
+    //画出斜最小矩形
+    Point2f rectPoint[4];
+    rotatedRect.points(rectPoint);
+    line(m_dstImg, rectPoint[0], rectPoint[1], Scalar(255));
+    line(m_dstImg, rectPoint[0], rectPoint[3], Scalar(255));
+    line(m_dstImg, rectPoint[1], rectPoint[2], Scalar(255));
+    line(m_dstImg, rectPoint[2], rectPoint[3], Scalar(255));
+
+    m_site = rotatedRect.center;  //位置
+    m_angle = rotatedRect.angle;
+}
+//双头无标记
+void _KnobSwitchTowHand::detect()
+{
+    //叠加
+    Mat overlayImg = m_sourceImg.clone();
+    for (int i = 2; i > 0; i--)
+        overlayImg += overlayImg;
+    cvtColor(overlayImg, m_midImg, COLOR_BGR2GRAY);
+    threshold(m_midImg, m_midImg, 170, 255, THRESH_BINARY_INV);
+    blur(m_midImg, m_midImg, Size(3, 3));
+
+    //获得轮廓和最小矩形框
+    vector<Mat> contours;
+    Rect maxRect;
+    int maxContour = 0;
+    findContours(m_midImg.clone(), contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+    //获取最大矩形
+    for (size_t i = 0; i < contours.size(); i++) {
+       Rect tempRect = boundingRect(contours[i]);
+       if (i == 0) {
+           maxRect = tempRect;
+           maxContour = 0;
+       }
+       else {
+           if (tempRect.area() > maxRect.area()) {
+               maxRect = tempRect;
+               maxContour = i;
+           }
+       }
+    }
+    m_dstImg = m_sourceImg.clone();
+    //获得最小矩形(可斜着)
+    RotatedRect rotatedRect = minAreaRect(contours[maxContour]);
+    //画出斜最小矩形
+    Point2f rectPoint[4];
+    rotatedRect.points(rectPoint);
+    line(m_dstImg, rectPoint[0], rectPoint[1], Scalar(255));
+    line(m_dstImg, rectPoint[0], rectPoint[3], Scalar(255));
+    line(m_dstImg, rectPoint[1], rectPoint[2], Scalar(255));
+    line(m_dstImg, rectPoint[2], rectPoint[3], Scalar(255));
+
+    m_site = rotatedRect.center;  //位置
+    m_angle = rotatedRect.angle;
 }
 
+
+
 #ifndef DEBUG_DETECTOR
-/////////////////////////textRecongize/////////////////
+/***********************字符识别**************************/
 void TextRecongize::fourPointsTransform(const Mat& src, const Point2f vertices[], Mat& result){
     const Size outputSize = Size(100, 32);
     Point2f targetVertices[4] = {

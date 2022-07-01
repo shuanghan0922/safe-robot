@@ -1,83 +1,122 @@
 #include "calibration.h"
 
+namespace detect {
 
-void CalibrationBtn::detect()
+Calibration::Calibration(Mat sourceImg) :
+    AbstractDetector(sourceImg),
+    AbstractCalibration() {
+
+    m_calibration = nullptr;
+}
+
+Calibration::Calibration(Mat sourceImg, CalibrationMethod method) :
+    AbstractDetector(sourceImg),
+    AbstractCalibration(),
+    m_method(method) {
+
+    switch (m_method) {
+    case btn:
+        m_calibration = new _CalibrationBtn(sourceImg);
+        break;
+    case line:
+        m_calibration = new ——CalibrationLine(sourceImg);
+        break;
+    case pannel:
+        m_calibration = new _CalibrationPannel(sourceImg);
+        break;
+    default:
+        std::cout << "输入正确的标定方法" << std::endl;
+        break;
+    }
+}
+
+Calibration::~Calibration()
 {
-    cv::Mat btnImg = sourceImg.clone();
-    detect::Btn *btn = new detect::Btn(sourceImg, detect::BtnColor::green);
+    delete m_calibration;
+}
+
+void Calibration::detect()
+{
+    m_calibration->detect();
+    this->m_dstImg = m_calibration->m_dstImg;
+    this->m_midImg = m_calibration->m_midImg;
+}
+
+void _CalibrationBtn::detect()
+{
+    cv::Mat btnImg = m_sourceImg.clone();
+    detect::Btn *btn = new detect::Btn(m_sourceImg, detect::BtnColor::green);
 
     btn->detect();
-    point.push_back(btn->getSite());   //添加第一个点
-    cv::Mat binaryImg =  btn->showBinaryImg(false);
+    m_points.push_back(btn->getSite());   //添加第一个点
     cv::Mat greenImg = btnImg.clone().setTo(0);
     btnImg(btn->getRect()).setTo(0).copyTo(btnImg(btn->getRect()));
     //重载图片，涂黑后再次检测
     btn->reloadSourceImg(btnImg);
     btn->detect();
-    point.push_back(btn->getSite());    //添加第二个点
+    m_points.push_back(btn->getSite());    //添加第二个点
     btnImg(btn->getRect()).setTo(0).copyTo(btnImg(btn->getRect()));
+    m_midImg = btnImg.clone();
 
     //红色
     delete btn;
     btn = new detect::Btn(btnImg, detect::BtnColor::red);
     btn->detect();
-    point.push_back(btn->getSite());   //添加第一个点
-    binaryImg =  btn->showBinaryImg(false);
+    m_points.push_back(btn->getSite());   //添加第一个点
     greenImg = btnImg.clone().setTo(0);
     btnImg(btn->getRect()).setTo(0).copyTo(btnImg(btn->getRect()));
     //重载图片，涂黑后再次检测
     btn->reloadSourceImg(btnImg);
     btn->detect();
-    point.push_back(btn->getSite());    //添加第二个点
+    m_points.push_back(btn->getSite());    //添加第二个点
     btnImg(btn->getRect()).setTo(0).copyTo(btnImg(btn->getRect()));
 
-    dstImg = btnImg.clone();
-    for (auto p : point)
+    m_dstImg = btnImg.clone();
+    for (auto p : m_points)
         std::cout << p << std::endl;
 }
 
-void CalibrationLine::detect()
+void ——CalibrationLine::detect()
 {
     //取出黄色line
     vector<cv::Mat> srcLineImg;
-    cv::split(sourceImg, srcLineImg);
+    cv::split(m_sourceImg, srcLineImg);
     cv::Mat greenBtn = srcLineImg[1] - srcLineImg[2];
     cv::Mat redBtn = srcLineImg[2] - srcLineImg[1];
     cv::Mat lineImg = srcLineImg[2]- srcLineImg[0] - redBtn - greenBtn;
-    binaryImg = lineImg.clone();
+    m_midImg = lineImg.clone();
     //查找角点
-    allCornerImg = lineImg.clone();
     vector<Point> corners;
     goodFeaturesToTrack(lineImg, corners, 12, 0.1, 10);
     cout << "查找到:" << corners.size() << " 个角点" << endl;
     for (auto p : corners) {
-        circle(allCornerImg, p, 5, Scalar(255), 2);
+        circle(m_midImg, p, 5, Scalar(255), 2);
     }
     //排除掉最下面的4个角点
-    cv::Mat  curCornerLineImg = lineImg.clone();
+    m_dstImg = lineImg.clone();
     sort(corners.begin(), corners.end(), [](Point x, Point y){
         return (x.y < y.y);
     });
     for (int i = 4; i > 0; i--)
         corners.pop_back();     //删除末尾四个元素
     for (auto p : corners) {
-        circle(curCornerLineImg, p, 5, Scalar(255), 2);
+        circle(m_dstImg, p, 5, Scalar(255), 2);
     }
-    dstImg = curCornerLineImg;
     //可根据四个点的信息进行校正
     for (auto p : corners)
         cout << p << endl;
+//    imshow("mid", midImg);
 }
 
-void CalibrationSquare::detect()
+void _CalibrationPannel::detect()
 {
-    cv::Mat squareImg = sourceImg.clone();
-    cv::cvtColor(sourceImg, squareImg, COLOR_BGR2GRAY);
+    cv::Mat squareImg = m_sourceImg.clone();
+    cv::cvtColor(m_sourceImg, squareImg, COLOR_BGR2GRAY);
     //预处理
     //反阈值
     threshold(squareImg, squareImg, 90, 255, THRESH_BINARY_INV);
     morphologyEx(squareImg, squareImg, CV_MOP_CLOSE, Mat());    //闭操作
-    binaryImg = squareImg.clone();
+    m_midImg = squareImg.clone();
     //轮廓识别 + 最大矩形排序
     vector<Mat> contours;
     findContours(squareImg.clone(), contours, RETR_LIST, CHAIN_APPROX_SIMPLE);
@@ -115,22 +154,15 @@ void CalibrationSquare::detect()
         squareImg(r).copyTo(cornerImg(r));
     }
 
-    goodFeaturesToTrack(squareImg, point, 4, 0.5, 10);
-    cout << "查找到:" << point.size() << " 个角点" << endl;
-    for (auto p : point) {
+    goodFeaturesToTrack(squareImg, m_points, 4, 0.5, 10);
+    cout << "查找到:" << m_points.size() << " 个角点" << endl;
+    for (auto p : m_points) {
         circle(squareImg, p, 5, Scalar(255), 2);
         std::cout << p << std::endl;
     }
-    dstImg = squareImg.clone();
+    m_dstImg = squareImg.clone();
 }
 
-Calibration::Calibration(Mat sourceImg, const string &method) :
-    AbstractDetector(sourceImg),
-    m_method(method) {
 
 }
 
-//Calibration CalibrationMethod::getMethodObject(const string &method)
-//{
-
-//}

@@ -1,7 +1,7 @@
 #ifndef DETECTOR_H
 #define DETECTOR_H
 
-#define DEBUG_DETECTOR  //detector调试码
+#define DEBUG_DETECTOR  //detector调试
 
 #include <iostream>
 #include <opencv2/opencv.hpp>
@@ -23,46 +23,60 @@ float getPointDepth(Point point);
 #endif
 namespace detect {
 
-//检测器基类
+//按钮颜色
+enum BtnColor {
+    red = 0, green, blue, other
+};
+//空开种类
+enum AirSwitchType {
+    type2,
+    type3,
+    type211
+};
+//旋钮识别种类
+enum KnobSwitchType {
+    twoHand,    //双头
+    oneHand      //单头
+};
+
+/***********************检测抽象基类***************************/
 class AbstractDetector {
 public:
-    //输入的原图
-    Mat sourceImg;
-    AbstractDetector(Mat inputImg) : sourceImg(inputImg) {};
-
+    AbstractDetector(Mat inputImg) : m_sourceImg(inputImg) {};
+    virtual ~AbstractDetector();    //作为基类要有虚析构函数
     //虚函数 detect()检测器
     //纯虚函数 该类无法被实例化，且继承自它的子类必须override该函数
     virtual void detect() = 0;
     /** @brief  重载源图
     */
-    void reloadSourceImg(cv::Mat& img) {
-        sourceImg = img;
+    virtual void reloadSourceImg(cv::Mat& img) {
+        m_sourceImg = img;
     }
     /** @brief  显示源图
     */
-    Mat showSourceImg(bool show = true) const {
-        if (show) imshow("sourceImg", sourceImg);
-        return sourceImg;
+    virtual Mat showSourceImg(bool show = true) const {
+        if (show) imshow("sourceImg", m_sourceImg);
+        return m_sourceImg;
     }
     /** @brief  显示结果图
     */
-    Mat showDstImg(bool show = true) const {
-        if (show) imshow("dstImg", dstImg);
-        return dstImg;
+    virtual Mat showDstImg(bool show = true) const {
+        if (show) imshow("dstImg", m_dstImg);
+        return m_dstImg;
     }
-    /** @brief  显示二值图
+    /** @brief  显示过程图
     */
-    Mat showBinaryImg(bool show = true) const {
-        if (show) imshow("binaryImg", binaryImg);
-        return binaryImg;
+    virtual Mat showMidImg(bool show = true) const {
+        if (show) imshow("midImg", m_midImg);
+        return m_midImg;
     }
     friend void getPrivateData(AbstractDetector& cellDetector); //该函数用于外部调用内部私有变量
 protected:
-    //结果图
-    Mat dstImg;
-    Mat binaryImg;  //过程图
+    Mat m_sourceImg;  //输入的原图
+    Mat m_dstImg; //结果图
+    Mat m_midImg;  //过程图
 };
-//圆检测器
+/***********************圆检测***************************/
 class Circle :public AbstractDetector {
 public:
     vector<Vec3f> circleInfo;
@@ -79,7 +93,7 @@ public:
 private:
     int dp = 1, minDist = 10;
 };
-//角点检测
+/***********************角点检测**************************/
 class Corner : public AbstractDetector {
 public:
     vector<Point> corners;
@@ -95,24 +109,46 @@ public:
 private:
     void sortConrersUseCircle();
 };
-//空开检测
+/***********************空开检测**************************/
 class AirSwitch : public AbstractDetector
 {
 public:
-
-    AirSwitch(Mat inputImg) : AbstractDetector(inputImg){};
+    AirSwitch(Mat inputImg);
+    AirSwitch(Mat inputImg, AirSwitchType type);
+    ~AirSwitch();
     /** @brief  重写来自基类的纯虚函数
     */
     virtual void detect() override;
     bool isUp();
+protected:
+    bool m_state;
 private:
-    bool state;
+    AirSwitchType m_type;
+    AirSwitch *m_airSwitch;
 };
-//按钮颜色
-enum BtnColor {
-    red = 0, green, blue, other
+
+//空开类型1
+class _AirSwitch2 : public AirSwitch {   //2个连接在一起
+public:
+    _AirSwitch2(cv::Mat inputImg) : AirSwitch(inputImg) {};
+    virtual void detect() override;
 };
-//按钮检测
+
+//空开类型2
+class _AirSwitch3 : public AirSwitch {   //3个连接在一起
+public:
+    _AirSwitch3(cv::Mat inputImg) : AirSwitch(inputImg) {};
+    virtual void detect() override;
+};
+
+//空开类型3
+class _AirSwitch211 : public AirSwitch {   //2，1，1 连接在一起
+public:
+    _AirSwitch211(cv::Mat inputImg) : AirSwitch(inputImg) {};
+    virtual void detect() override;
+};
+
+/***********************按钮检测**************************/
 class Btn : public AbstractDetector
 {
 public:
@@ -153,22 +189,39 @@ private:
     //获取btn中的圆
     bool detectCircles();
 };
-//旋钮检测
+/***********************旋钮检测**************************/
 class KnobSwitch : public AbstractDetector
 {
 public:
-    //位置
-    Point site;
-    float angle = 0.0;
-    Mat knobSwitchTestImg;
-    KnobSwitch(Mat inputImg) : AbstractDetector(inputImg){
-    }
+    KnobSwitch(Mat inputImg) : AbstractDetector(inputImg){};
+    KnobSwitch(Mat inputImg, KnobSwitchType method);
     /** @brief  重写来自基类的纯虚函数
     */
     virtual void detect() override;
-    void getKnobSwitch();
-
+    float getAngle() const {return m_knobSwitch->getAngle();}
+protected:
+    //位置
+    Point m_site;
+    float m_angle = 0.0;
+private:
+    KnobSwitchType m_method;
+    KnobSwitch *m_knobSwitch;
 };
+
+//双头旋钮
+class _KnobSwitchTowHand : public KnobSwitch {
+public:
+    _KnobSwitchTowHand(cv::Mat inputImg) : KnobSwitch(inputImg){}
+    virtual void detect() override;
+};
+//单头旋钮
+class _KnobSwitchOneHand : public KnobSwitch {
+public:
+    _KnobSwitchOneHand(cv::Mat inputImg) : KnobSwitch(inputImg){}
+    virtual void detect() override;
+};
+
+/***********************字符识别**************************/
 #ifndef DEBUG_DETECTOR
 class TextRecongize{
 public:

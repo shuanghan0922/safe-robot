@@ -4,19 +4,24 @@
 using namespace std;
 //using namespace detect;
 
-void detect::getPrivateData(Detector& cellDetector) {
-    imshow("Test", cellDetector.binaryImg);
+void detect::getPrivateData(AbstractDetector& cellDetector) {
+    imshow("Test", cellDetector.m_dstImg);
 }
 
 
 int main()
 {
-    Mat sourceImg = imread("../../resource/image/btn/green1.png");
+    Mat sourceImg = imread("../../resource/image/cell/knobSwitch/1.png");
 
-    detect::Btn detectBtn(sourceImg, detect::BtnColor::green);
-    detectBtn.detect();
-//    detectBtn.isLighted();
-//    detectBtn.showDstImg();
+    detect::KnobSwitch knobSwitch(sourceImg, detect::KnobSwitchType::oneHand);
+    knobSwitch.detect();
+    knobSwitch.showMidImg();
+    knobSwitch.showDstImg();
+
+//    detect::AirSwitch airSwitch(sourceImg, detect::AirSwitchType::type211);
+//    airSwitch.detect();
+//    airSwitch.showMidImg();
+//    airSwitch.showDstImg();
 
 
     waitKey(0);
