@@ -17,6 +17,7 @@ int main()
     knobSwitch.detect();
     knobSwitch.showMidImg();
     knobSwitch.showDstImg();
+    cout << knobSwitch.getAngle() << endl;
 
 //    detect::AirSwitch airSwitch(sourceImg, detect::AirSwitchType::type211);
 //    airSwitch.detect();

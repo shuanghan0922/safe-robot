@@ -198,7 +198,7 @@ public:
     /** @brief  重写来自基类的纯虚函数
     */
     virtual void detect() override;
-    float getAngle() const {return m_knobSwitch->getAngle();}
+    virtual float getAngle() const {return m_knobSwitch->getAngle();}
 protected:
     //位置
     Point m_site;
@@ -213,12 +213,14 @@ class _KnobSwitchTowHand : public KnobSwitch {
 public:
     _KnobSwitchTowHand(cv::Mat inputImg) : KnobSwitch(inputImg){}
     virtual void detect() override;
+    virtual float getAngle() const override {return m_angle;}
 };
 //单头旋钮
 class _KnobSwitchOneHand : public KnobSwitch {
 public:
     _KnobSwitchOneHand(cv::Mat inputImg) : KnobSwitch(inputImg){}
     virtual void detect() override;
+    virtual float getAngle() const override {return m_angle;}
 };
 
 /***********************字符识别**************************/
