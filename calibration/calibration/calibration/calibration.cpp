@@ -19,7 +19,7 @@ Calibration::Calibration(Mat sourceImg, CalibrationMethod method) :
         m_calibration = new _CalibrationBtn(sourceImg);
         break;
     case line:
-        m_calibration = new ——CalibrationLine(sourceImg);
+        m_calibration = new _CalibrationLine(sourceImg);
         break;
     case pannel:
         m_calibration = new _CalibrationPannel(sourceImg);
@@ -76,7 +76,7 @@ void _CalibrationBtn::detect()
         std::cout << p << std::endl;
 }
 
-void ——CalibrationLine::detect()
+void _CalibrationLine::detect()
 {
     //取出黄色line
     vector<cv::Mat> srcLineImg;

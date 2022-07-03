@@ -11,9 +11,9 @@ void detect::getPrivateData(AbstractDetector& cellDetector) {
 
 int main()
 {
-    Mat sourceImg = imread("../../resource/image/cell/knobSwitch/1.png");
+    Mat sourceImg = imread("../../resource/image/cell/knobSwitch/knobSwitch1.png");
 
-    detect::KnobSwitch knobSwitch(sourceImg, detect::KnobSwitchType::oneHand);
+    detect::KnobSwitch knobSwitch(sourceImg, detect::KnobSwitchType::twoHand);
     knobSwitch.detect();
     knobSwitch.showMidImg();
     knobSwitch.showDstImg();
